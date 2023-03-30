@@ -1,6 +1,8 @@
-﻿function Test-IISUser {
+function Test-IISUser {
     [CmdletBinding()]
     param(
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName,
         [Parameter(Mandatory = $true)]
         [string]$UserName,
         [Parameter(Mandatory = $true)]
@@ -18,7 +20,10 @@
     }
 
     # Get the list of application pools
-    $AppPools = Get-ChildItem IIS:\AppPools
+    $AppPools = Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+        Get-ChildItem IIS:\AppPools
+    }
+
     foreach ($AppPool in $AppPools) {
         $AppPoolUser = $AppPool.processModel.userName
         if ($AppPoolUser -eq $UserName) {
@@ -30,7 +35,10 @@
     }
 
     # Get the list of sites
-    $Sites = Get-ChildItem IIS:\Sites
+    $Sites = Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+        Get-ChildItem IIS:\Sites
+    }
+
     foreach ($Site in $Sites) {
         $SiteUserName = $Site.applicationDefaults.applicationPool.processModel.userName
         if ($SiteUserName -eq $UserName) {
@@ -41,7 +49,10 @@
         }
 
         # Get the list of virtual directories for each site
-        $VirtualDirectories = Get-ChildItem "IIS:\Sites\$($Site.Name)\"
+        $VirtualDirectories = Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+            Get-ChildItem "IIS:\Sites\$($Site.Name)\"
+        }
+
         foreach ($Vdir in $VirtualDirectories) {
             $VdirUserName = $Vdir.applicationPool.processModel.userName
             if ($VdirUserName -eq $UserName) {
@@ -66,6 +77,4 @@
         IISConfig = $IISConfig
     }
 }
-
-
-# Test-IISUser -UserName "DOMAIN\USERNAME" -Password "PASSWORD"
+# Invoke-Command -ComputerName COMPUTERNAME -ScriptBlock {Test-IISUser -ComputerName "COMPUTERNAME" -UserName "DOMAIN\USERNAME" -Password "PASSWORD"}
