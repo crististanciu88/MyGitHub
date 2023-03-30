@@ -78,3 +78,57 @@ function Test-IISUser {
     }
 }
 # Invoke-Command -ComputerName COMPUTERNAME -ScriptBlock {Test-IISUser -ComputerName "COMPUTERNAME" -UserName "DOMAIN\USERNAME" -Password "PASSWORD"}
+
+function Test-IISUser {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$UserName,
+        [Parameter(Mandatory = $true)]
+        [string]$Password
+    )
+
+    # Convert the password to a secure string
+    $SecurePassword = ConvertTo-SecureString $Password -AsPlainText -Force
+
+    # Check if the user exists in any IIS setting
+    $UserExists = $false
+
+    # Get the list of application pools, sites, and virtual directories
+    $AppPools = Get-ChildItem IIS:\AppPools
+    $Sites = Get-ChildItem IIS:\Sites
+
+    foreach ($Site in $Sites) {
+        # Check if the user is assigned to the site's application pool
+        if ($Site.applicationDefaults.applicationPool.processModel.userName -eq $UserName) {
+            $UserExists = $true
+            break
+        }
+
+        # Get the list of virtual directories for the site
+        $VirtualDirectories = Get-ChildItem "IIS:\Sites\$($Site.Name)\"
+
+        foreach ($Vdir in $VirtualDirectories) {
+            # Check if the user is assigned to the virtual directory's application pool
+            if ($Vdir.applicationPool.processModel.userName -eq $UserName) {
+                $UserExists = $true
+                break
+            }
+        }
+
+        if ($UserExists) {
+            break
+        }
+    }
+
+    foreach ($AppPool in $AppPools) {
+        # Check if the user is assigned to the application pool
+        if ($AppPool.processModel.userName -eq $UserName) {
+            $UserExists = $true
+            break
+        }
+    }
+
+    # Return the result
+    [bool]$UserExists
+}
