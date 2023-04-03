@@ -89,6 +89,8 @@ function Test-IISUser {
     )
 
     # Convert the password to a secure string
+    
+  
     $SecurePassword = ConvertTo-SecureString $Password -AsPlainText -Force
 
     # Check if the user exists in any IIS setting
@@ -132,3 +134,77 @@ function Test-IISUser {
     # Return the result
     [bool]$UserExists
 }
+
+
+function Search-ConfigFiles {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$ComputerName,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$SearchString
+    )
+
+    $matchingFiles = @()
+
+    $configFiles = Get-WmiObject -Class CIM_DataFile -Filter "Drive='C:' AND Extension='config'" -ComputerName $ComputerName | Select-Object -ExpandProperty Name
+
+    foreach ($configFile in $configFiles) {
+        $content = Get-Content -Path $configFile -ErrorAction SilentlyContinue
+        if ($content -match $SearchString) {
+            $matchingFiles += $configFile
+        }
+    }
+
+    return $matchingFiles
+}
+
+$matchingFiles = Search-ConfigFiles -ComputerName "mycomputer" -SearchString "mysearchstring"
+Write-Output "Matching files:"
+$matchingFiles
+
+function Search-GitLabRepositories {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$ApiToken,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$GitLabUrl,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$SearchString,
+        
+        [Parameter(Mandatory=$true)]
+        [string[]]$RepositoryNames
+    )
+
+    $matchingFiles = @()
+
+    $headers = @{
+        "PRIVATE-TOKEN" = $ApiToken
+    }
+
+    foreach ($repoName in $RepositoryNames) {
+        $url = "$GitLabUrl/api/v4/projects/$($repoName)/repository/files?per_page=100&page=1&ref=master&file_path=**/*&search=$($SearchString)"
+        $response = Invoke-RestMethod -Uri $url -Headers $headers
+
+        foreach ($result in $response) {
+            if ($result.type -eq "blob" -and $result.content -match $SearchString) {
+                $matchingFiles += $result.file_path
+            }
+        }
+    }
+
+    return $matchingFiles
+}
+
+$ApiToken = "mygitlabapitoken"
+$GitLabUrl = "https://mygitlabinstance.com"
+$SearchString = "mysearchstring"
+$RepositoryNames = @("mygroup/myrepo1", "mygroup/myrepo2")
+
+$matchingFiles = Search-GitLabRepositories -ApiToken $ApiToken -GitLabUrl $GitLabUrl -SearchString $SearchString -RepositoryNames $RepositoryNames
+Write-Output "Matching files:"
+$matchingFiles
