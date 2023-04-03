@@ -1,54 +1,38 @@
-﻿function Update-IISCredentials {
-    [CmdletBinding()]
-    Param (
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
-        [string[]]$ComputerName,
+# Specify the new password and the desired user
+$newPassword = "NewPassword123"
+$desiredUser = "mydomain\myuser"
 
-        [Parameter(Mandatory=$true)]
-        [string]$Username,
-
-        [Parameter(Mandatory=$true)]
-        [string]$NewPassword
-    )
-
-    Process {
-        foreach ($computer in $ComputerName) {
-            Write-Host "Updating credentials on $computer"
-
-            # Get the SID of the user account
-            $user = Get-ADUser -Identity $Username
-            $userSID = $user.SID.Value
-
-            # Update the credentials for the IIS app pools
-            $iisAppPools = Get-ChildItem "IIS:\AppPools" -PSProvider WebAdministration -ComputerName $computer
-            foreach ($appPool in $iisAppPools) {
-                $appPoolIdentity = $appPool.processModel.userName
-                if ($appPoolIdentity -eq $Username) {
-                    Set-ItemProperty $appPool.PSPath -Name processModel.username -Value $Username
-                    Set-ItemProperty $appPool.PSPath -Name processModel.password -Value $NewPassword
-                }
-            }
-
-            # Update the credentials for the IIS sites
-            $iisSites = Get-ChildItem "IIS:\Sites" -PSProvider WebAdministration -ComputerName $computer
-            foreach ($site in $iisSites) {
-                $siteIdentity = (Get-ItemProperty $site.PSPath -Name applicationPool).applicationPool
-                if ($siteIdentity -eq $Username) {
-                    Set-ItemProperty $site.PSPath -Name applicationPool -Value $site.applicationPool.Replace($site.applicationPool.Split('\')[1], $Username.Split('\')[1])
-                }
-            }
-
-            # Update the credentials for the IIS virtual directories
-            $iisVDirs = Get-ChildItem "IIS:\Sites\*\*" -PSProvider WebAdministration -ComputerName $computer
-            foreach ($vdir in $iisVDirs) {
-                $vdirIdentity = (Get-ItemProperty $vdir.PSPath -Name applicationPool).applicationPool
-                if ($vdirIdentity -eq $Username) {
-                    Set-ItemProperty $vdir.PSPath -Name applicationPool -Value $vdir.applicationPool.Replace($vdir.applicationPool.Split('\')[1], $Username.Split('\')[1])
-                }
-            }
-
-            # Restart the IIS service
-            Invoke-Command -ComputerName $computer -ScriptBlock { Restart-Service W3SVC }
-        }
+# Check if the desired user is running any application pools
+$appPools = Get-ChildItem "IIS:\AppPools" | Where-Object { $_.ProcessModel.UserName -eq $desiredUser }
+if ($appPools.Count -gt 0) {
+    # Update the password for all application pools running under the desired user
+    $appPools | ForEach-Object {
+        $poolName = $_.Name
+        Write-Host "Updating password for application pool: $poolName"
+        & "$env:SystemRoot\system32\inetsrv\appcmd.exe" set apppool "$poolName" -processModel.password:"$newPassword"
     }
+}
+
+# Check if the desired user is running any sites or virtual directories
+$sites = Get-ChildItem "IIS:\Sites" | Where-Object { $_.Defaults.UserName -eq $desiredUser }
+$vdirs = Get-ChildItem "IIS:\Sites" | Get-ChildItem -Recurse | Where-Object { $_.PSIsContainer -eq $false -and $_.UserName -eq $desiredUser }
+if ($sites.Count -gt 0 -or $vdirs.Count -gt 0) {
+    # Update the password for all sites and virtual directories running under the desired user
+    $sites | ForEach-Object {
+        $siteName = $_.Name
+        Write-Host "Updating password for site: $siteName"
+        & "$env:SystemRoot\system32\inetsrv\appcmd.exe" set site "$siteName" -applicationDefaults.password:"$newPassword"
+    }
+
+    $vdirs | ForEach-Object {
+        $vdName = $_.Name
+        $siteName = $_.PSPath.Split('/', 4)[-1]
+        Write-Host "Updating password for virtual directory: $siteName/$vdName"
+        & "$env:SystemRoot\system32\inetsrv\appcmd.exe" set vdir "$siteName/$vdName" -password:"$newPassword"
+    }
+}
+
+# Output a message indicating that no IIS apps were found running under the desired user
+if ($appPools.Count -eq 0 -and $sites.Count -eq 0 -and $vdirs.Count -eq 0) {
+    Write-Warning "No IIS applications were found running under the user $desiredUser."
 }
