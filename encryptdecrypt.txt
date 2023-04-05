@@ -47,3 +47,35 @@ $decryptedString = [System.Text.Encoding]::Unicode.GetString($decryptedBytes, 0,
 
 # Print the decrypted string
 Write-Output "Decrypted string: $decryptedString"
+
+function Decrypt-String {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$EncryptedString,
+        [Parameter(Mandatory=$true)]
+        [string]$EncryptionKey
+    )
+    
+    $encryptedBytes = [System.Convert]::FromBase64String($EncryptedString)
+    $encryptionKeyBytes = [System.Text.Encoding]::UTF8.GetBytes($EncryptionKey)
+    
+    $aesManaged = New-Object System.Security.Cryptography.AesManaged
+    $aesManaged.Key = $encryptionKeyBytes
+    $aesManaged.IV = $encryptionKeyBytes
+    $aesManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $aesManaged.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+    
+    $decryptor = $aesManaged.CreateDecryptor()
+    
+    $memoryStream = New-Object System.IO.MemoryStream($encryptedBytes)
+    $cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
+    $streamReader = New-Object System.IO.StreamReader($cryptoStream)
+    
+    $result = $streamReader.ReadToEnd()
+    
+    $streamReader.Close()
+    $cryptoStream.Close()
+    $memoryStream.Close()
+    
+    return $result
+}
