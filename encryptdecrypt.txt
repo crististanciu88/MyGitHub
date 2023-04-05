@@ -1,63 +1,52 @@
-$plainText = "Hello, world!"
-$passphrase = "MySecretPassphrase"
-$encryptionKey = New-Object System.Security.Cryptography.RijndaelManaged
-$encryptionKey.KeySize = 192
-$encryptionKey.Mode = [System.Security.Cryptography.CipherMode]::CBC
-$encryptionKey.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
-$encryptionKey.GenerateIV()
-$encryptionKey.GenerateKey()
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
-# Triple DES Encryption
-$tripleDesEncryption = New-Object System.Security.Cryptography.TripleDESCryptoServiceProvider
-$tripleDesEncryption.Key = $encryptionKey.Key
-$tripleDesEncryption.Mode = [System.Security.Cryptography.CipherMode]::ECB
-$tripleDesEncryption.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+class Program
+{
+    static void Main(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Console.WriteLine("Usage: encrypt inputstring encryptionkey");
+            return;
+        }
 
-# RC2 Encryption
-$rc2Encryption = New-Object System.Security.Cryptography.RC2CryptoServiceProvider
-$rc2Encryption.Key = $encryptionKey.Key
-$rc2Encryption.Mode = [System.Security.Cryptography.CipherMode]::ECB
-$rc2Encryption.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+        string inputString = args[0];
+        string encryptionKey = args[1];
 
-# Encrypt with Rijndael
-$rijndaelEncryptor = $encryptionKey.CreateEncryptor()
-$memoryStream = New-Object System.IO.MemoryStream
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $rijndaelEncryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
-$streamWriter = New-Object System.IO.StreamWriter($cryptoStream)
-$streamWriter.Write($plainText)
-$streamWriter.Flush()
-$cryptoStream.FlushFinalBlock()
-$memoryStream.Flush()
-$rijndaelEncryptedBytes = $memoryStream.ToArray()
-$memoryStream.Close()
-$cryptoStream.Close()
+        byte[] encrypted = EncryptStringToBytes(inputString, encryptionKey);
 
-# Encrypt with Triple DES
-$tripleDesEncryptor = $tripleDesEncryption.CreateEncryptor()
-$memoryStream = New-Object System.IO.MemoryStream
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $tripleDesEncryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
-$cryptoStream.Write($rijndaelEncryptedBytes, 0, $rijndaelEncryptedBytes.Length)
-$cryptoStream.FlushFinalBlock()
-$tripleDesEncryptedBytes = $memoryStream.ToArray()
-$memoryStream.Close()
-$cryptoStream.Close()
+        Console.WriteLine("Encrypted result:");
+        Console.WriteLine(Convert.ToBase64String(encrypted));
+    }
 
-# Encrypt with RC2
-$rc2Encryptor = $rc2Encryption.CreateEncryptor()
-$memoryStream = New-Object System.IO.MemoryStream
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $rc2Encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
-$cryptoStream.Write($tripleDesEncryptedBytes, 0, $tripleDesEncryptedBytes.Length)
-$cryptoStream.FlushFinalBlock()
-$rc2EncryptedBytes = $memoryStream.ToArray()
-$memoryStream.Close()
-$cryptoStream.Close()
+    static byte[] EncryptStringToBytes(string plainText, string key)
+    {
+        byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+        byte[] iv = new byte[16]; // CBC mode requires an Initialization Vector (IV), which should be a unique random value for each encryption
 
-$encryptedText = [Convert]::ToBase64String($rc2EncryptedBytes)
-Write-Output "Encrypted text: $encryptedText"
+        using (RijndaelManaged rijAlg = new RijndaelManaged())
+        {
+            rijAlg.Key = keyBytes;
+            rijAlg.Mode = CipherMode.CBC; // Use Cipher Block Chaining (CBC) mode
+            rijAlg.Padding = PaddingMode.PKCS7; // Use PKCS7 padding
 
-# Decrypt with RC2
-$rc2Decryptor = $rc2Encryption.CreateDecryptor()
-$memoryStream = New-Object System.IO.MemoryStream($rc2EncryptedBytes)
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $rc2Decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
-$tripleDesDecryptor = $tripleDesEncryption.CreateDecryptor()
-$memoryStream2 = New-Object System.IO
+            ICryptoTransform encryptor = rijAlg.CreateEncryptor(rijAlg.Key, iv);
+
+            using (MemoryStream msEncrypt = new MemoryStream())
+            {
+                using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                {
+                    using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
+                    {
+                        swEncrypt.Write(plainText);
+                    }
+
+                    return msEncrypt.ToArray();
+                }
+            }
+        }
+    }
+}
