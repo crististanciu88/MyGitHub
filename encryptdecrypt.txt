@@ -1,0 +1,28 @@
+# Define the original string and the key used for encryption
+$originalString = "Hello, world!"
+$key = "mykey"
+
+# Convert the original string and the key to byte arrays
+$originalBytes = [System.Text.Encoding]::Unicode.GetBytes($originalString)
+$keyBytes = [System.Text.Encoding]::Unicode.GetBytes($key)
+
+# Loop through each byte in the original string and XOR it with the corresponding byte in the key
+for ($i = 0; $i -lt $originalBytes.Length; $i++) {
+    $originalBytes[$i] = $originalBytes[$i] -bxor $keyBytes[$i % $keyBytes.Length]
+}
+
+# Convert the XORed bytes back to a string
+$encryptedString = [System.Text.Encoding]::Unicode.GetString($originalBytes)
+
+# Print the encrypted string
+Write-Output "Encrypted string: $encryptedString"
+
+# Decrypt the string using the same key
+$encryptedBytes = [System.Text.Encoding]::Unicode.GetBytes($encryptedString)
+for ($i = 0; $i -lt $encryptedBytes.Length; $i++) {
+    $encryptedBytes[$i] = $encryptedBytes[$i] -bxor $keyBytes[$i % $keyBytes.Length]
+}
+$decryptedString = [System.Text.Encoding]::Unicode.GetString($encryptedBytes)
+
+# Print the decrypted string
+Write-Output "Decrypted string: $decryptedString"
