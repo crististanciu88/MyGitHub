@@ -1,52 +1,35 @@
-# Define the original string and the key used for encryption
-$originalString = "Hello, world!"
-$key = "mykey"
-
-# Convert the original string and the key to byte arrays
-$originalBytes = [System.Text.Encoding]::Unicode.GetBytes($originalString)
-$keyBytes = [System.Text.Encoding]::Unicode.GetBytes($key)
-
-# Create an AesManaged object and set the key and initialization vector (IV)
-$aes = New-Object System.Security.Cryptography.AesManaged
-$aes.Key = $keyBytes
-$aes.IV = $keyBytes
-
-# Create an encryptor and a MemoryStream object to write the encrypted data to
-$encryptor = $aes.CreateEncryptor()
-$memoryStream = New-Object System.IO.MemoryStream
-
-# Create a CryptoStream object to write the encrypted data to the MemoryStream
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
-
-# Write the original bytes to the CryptoStream and flush it
-$cryptoStream.Write($originalBytes, 0, $originalBytes.Length)
-$cryptoStream.FlushFinalBlock()
-
-# Get the encrypted bytes from the MemoryStream and convert them to a string
-$encryptedBytes = $memoryStream.ToArray()
-$encryptedString = [System.Convert]::ToBase64String($encryptedBytes)
-
-# Print the encrypted string
-Write-Output "Encrypted string: $encryptedString"
-
-# Create a decryptor and a MemoryStream object to read the encrypted data from
-$decryptor = $aes.CreateDecryptor()
-$memoryStream = New-Object System.IO.MemoryStream($encryptedBytes)
-
-# Create a CryptoStream object to read the encrypted data from the MemoryStream
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
-
-# Create a byte array to hold the decrypted data
-$decryptedBytes = New-Object byte[] $encryptedBytes.Length
-
-# Read the decrypted data from the CryptoStream and store it in the byte array
-$bytesRead = $cryptoStream.Read($decryptedBytes, 0, $encryptedBytes.Length)
-
-# Convert the decrypted bytes to a string
-$decryptedString = [System.Text.Encoding]::Unicode.GetString($decryptedBytes, 0, $bytesRead)
-
-# Print the decrypted string
-Write-Output "Decrypted string: $decryptedString"
+function Encrypt-String {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$InputString,
+        [Parameter(Mandatory=$true)]
+        [string]$EncryptionKey
+    )
+    
+    $encryptionKeyBytes = [System.Text.Encoding]::UTF8.GetBytes($EncryptionKey)
+    $inputBytes = [System.Text.Encoding]::UTF8.GetBytes($InputString)
+    
+    $rijndaelManaged = New-Object System.Security.Cryptography.RijndaelManaged
+    $rijndaelManaged.Key = $encryptionKeyBytes
+    $rijndaelManaged.IV = $encryptionKeyBytes
+    $rijndaelManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $rijndaelManaged.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+    
+    $encryptor = $rijndaelManaged.CreateEncryptor()
+    
+    $memoryStream = New-Object System.IO.MemoryStream
+    $cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
+    
+    $cryptoStream.Write($inputBytes, 0, $inputBytes.Length)
+    $cryptoStream.FlushFinalBlock()
+    
+    $result = [System.Convert]::ToBase64String($memoryStream.ToArray())
+    
+    $cryptoStream.Close()
+    $memoryStream.Close()
+    
+    return $result
+}
 
 function Decrypt-String {
     param(
@@ -59,13 +42,13 @@ function Decrypt-String {
     $encryptedBytes = [System.Convert]::FromBase64String($EncryptedString)
     $encryptionKeyBytes = [System.Text.Encoding]::UTF8.GetBytes($EncryptionKey)
     
-    $aesManaged = New-Object System.Security.Cryptography.AesManaged
-    $aesManaged.Key = $encryptionKeyBytes
-    $aesManaged.IV = $encryptionKeyBytes
-    $aesManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
-    $aesManaged.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+    $rijndaelManaged = New-Object System.Security.Cryptography.RijndaelManaged
+    $rijndaelManaged.Key = $encryptionKeyBytes
+    $rijndaelManaged.IV = $encryptionKeyBytes
+    $rijndaelManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $rijndaelManaged.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
     
-    $decryptor = $aesManaged.CreateDecryptor()
+    $decryptor = $rijndaelManaged.CreateDecryptor()
     
     $memoryStream = New-Object System.IO.MemoryStream($encryptedBytes)
     $cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
