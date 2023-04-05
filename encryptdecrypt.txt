@@ -1,29 +1,63 @@
 $plainText = "Hello, world!"
 $passphrase = "MySecretPassphrase"
 $encryptionKey = New-Object System.Security.Cryptography.RijndaelManaged
-$encryptionKey.KeySize = 256
+$encryptionKey.KeySize = 192
+$encryptionKey.Mode = [System.Security.Cryptography.CipherMode]::CBC
+$encryptionKey.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
 $encryptionKey.GenerateIV()
 $encryptionKey.GenerateKey()
-$encryptor = $encryptionKey.CreateEncryptor()
+
+# Triple DES Encryption
+$tripleDesEncryption = New-Object System.Security.Cryptography.TripleDESCryptoServiceProvider
+$tripleDesEncryption.Key = $encryptionKey.Key
+$tripleDesEncryption.Mode = [System.Security.Cryptography.CipherMode]::ECB
+$tripleDesEncryption.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+
+# RC2 Encryption
+$rc2Encryption = New-Object System.Security.Cryptography.RC2CryptoServiceProvider
+$rc2Encryption.Key = $encryptionKey.Key
+$rc2Encryption.Mode = [System.Security.Cryptography.CipherMode]::ECB
+$rc2Encryption.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+
+# Encrypt with Rijndael
+$rijndaelEncryptor = $encryptionKey.CreateEncryptor()
 $memoryStream = New-Object System.IO.MemoryStream
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $rijndaelEncryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
 $streamWriter = New-Object System.IO.StreamWriter($cryptoStream)
 $streamWriter.Write($plainText)
 $streamWriter.Flush()
 $cryptoStream.FlushFinalBlock()
 $memoryStream.Flush()
-$encryptedBytes = $memoryStream.ToArray()
+$rijndaelEncryptedBytes = $memoryStream.ToArray()
 $memoryStream.Close()
 $cryptoStream.Close()
-$encryptedText = [Convert]::ToBase64String($encryptedBytes)
+
+# Encrypt with Triple DES
+$tripleDesEncryptor = $tripleDesEncryption.CreateEncryptor()
+$memoryStream = New-Object System.IO.MemoryStream
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $tripleDesEncryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
+$cryptoStream.Write($rijndaelEncryptedBytes, 0, $rijndaelEncryptedBytes.Length)
+$cryptoStream.FlushFinalBlock()
+$tripleDesEncryptedBytes = $memoryStream.ToArray()
+$memoryStream.Close()
+$cryptoStream.Close()
+
+# Encrypt with RC2
+$rc2Encryptor = $rc2Encryption.CreateEncryptor()
+$memoryStream = New-Object System.IO.MemoryStream
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $rc2Encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
+$cryptoStream.Write($tripleDesEncryptedBytes, 0, $tripleDesEncryptedBytes.Length)
+$cryptoStream.FlushFinalBlock()
+$rc2EncryptedBytes = $memoryStream.ToArray()
+$memoryStream.Close()
+$cryptoStream.Close()
+
+$encryptedText = [Convert]::ToBase64String($rc2EncryptedBytes)
 Write-Output "Encrypted text: $encryptedText"
 
-$decryptedBytes = [Convert]::FromBase64String($encryptedText)
-$decryptor = $encryptionKey.CreateDecryptor()
-$memoryStream = New-Object System.IO.MemoryStream($decryptedBytes)
-$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
-$streamReader = New-Object System.IO.StreamReader($cryptoStream)
-$decryptedText = $streamReader.ReadToEnd()
-$memoryStream.Close()
-$cryptoStream.Close()
-$decryptedText
+# Decrypt with RC2
+$rc2Decryptor = $rc2Encryption.CreateDecryptor()
+$memoryStream = New-Object System.IO.MemoryStream($rc2EncryptedBytes)
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $rc2Decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
+$tripleDesDecryptor = $tripleDesEncryption.CreateDecryptor()
+$memoryStream2 = New-Object System.IO
