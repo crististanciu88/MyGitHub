@@ -1,0 +1,38 @@
+# Specify the array of paths to search
+$paths = @("C:\Path1", "C:\Path2")
+
+# Specify the search string and the replacement string
+$searchString = "mystring"
+$replacementString = "newstring"
+
+# Initialize an empty array to store the output
+$output = @()
+
+# Loop through each path in the array
+foreach ($path in $paths) {
+    # Get all files with the .config extension in the current path
+    $files = Get-ChildItem -Path $path -Recurse -Include "*.config" -File
+
+    # Loop through each file and check if it contains the search string
+    foreach ($file in $files) {
+        $content = Get-Content $file.FullName -Raw
+        if ($content.Contains($searchString)) {
+            # Replace the search string with the replacement string
+            $newContent = $content.Replace($searchString, $replacementString)
+            Set-Content $file.FullName $newContent
+
+            # Add the file path to the output array
+            $output += "Replaced string in $($file.FullName)."
+        }
+    }
+}
+
+# Show all replacements
+if ($output.Count -gt 0) {
+    Write-Output "Replacements made:"
+    foreach ($replacement in $output) {
+        Write-Output $replacement
+    }
+} else {
+    Write-Output "No replacements made."
+}
