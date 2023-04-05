@@ -1,64 +1,29 @@
-function Encrypt-String {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$InputString,
-        [Parameter(Mandatory=$true)]
-        [string]$EncryptionKey
-    )
-    
-    $encryptionKeyBytes = [System.Text.Encoding]::UTF8.GetBytes($EncryptionKey)
-    $inputBytes = [System.Text.Encoding]::UTF8.GetBytes($InputString)
-    
-    $rijndaelManaged = New-Object System.Security.Cryptography.RijndaelManaged
-    $rijndaelManaged.Key = $encryptionKeyBytes
-    $rijndaelManaged.IV = $encryptionKeyBytes
-    $rijndaelManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
-    $rijndaelManaged.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
-    
-    $encryptor = $rijndaelManaged.CreateEncryptor()
-    
-    $memoryStream = New-Object System.IO.MemoryStream
-    $cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
-    
-    $cryptoStream.Write($inputBytes, 0, $inputBytes.Length)
-    $cryptoStream.FlushFinalBlock()
-    
-    $result = [System.Convert]::ToBase64String($memoryStream.ToArray())
-    
-    $cryptoStream.Close()
-    $memoryStream.Close()
-    
-    return $result
-}
+$plainText = "Hello, world!"
+$passphrase = "MySecretPassphrase"
+$encryptionKey = New-Object System.Security.Cryptography.RijndaelManaged
+$encryptionKey.KeySize = 256
+$encryptionKey.GenerateIV()
+$encryptionKey.GenerateKey()
+$encryptor = $encryptionKey.CreateEncryptor()
+$memoryStream = New-Object System.IO.MemoryStream
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $encryptor, [System.Security.Cryptography.CryptoStreamMode]::Write)
+$streamWriter = New-Object System.IO.StreamWriter($cryptoStream)
+$streamWriter.Write($plainText)
+$streamWriter.Flush()
+$cryptoStream.FlushFinalBlock()
+$memoryStream.Flush()
+$encryptedBytes = $memoryStream.ToArray()
+$memoryStream.Close()
+$cryptoStream.Close()
+$encryptedText = [Convert]::ToBase64String($encryptedBytes)
+Write-Output "Encrypted text: $encryptedText"
 
-function Decrypt-String {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$EncryptedString,
-        [Parameter(Mandatory=$true)]
-        [string]$EncryptionKey
-    )
-    
-    $encryptedBytes = [System.Convert]::FromBase64String($EncryptedString)
-    $encryptionKeyBytes = [System.Text.Encoding]::UTF8.GetBytes($EncryptionKey)
-    
-    $rijndaelManaged = New-Object System.Security.Cryptography.RijndaelManaged
-    $rijndaelManaged.Key = $encryptionKeyBytes
-    $rijndaelManaged.IV = $encryptionKeyBytes
-    $rijndaelManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
-    $rijndaelManaged.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
-    
-    $decryptor = $rijndaelManaged.CreateDecryptor()
-    
-    $memoryStream = New-Object System.IO.MemoryStream($encryptedBytes)
-    $cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
-    $streamReader = New-Object System.IO.StreamReader($cryptoStream)
-    
-    $result = $streamReader.ReadToEnd()
-    
-    $streamReader.Close()
-    $cryptoStream.Close()
-    $memoryStream.Close()
-    
-    return $result
-}
+$decryptedBytes = [Convert]::FromBase64String($encryptedText)
+$decryptor = $encryptionKey.CreateDecryptor()
+$memoryStream = New-Object System.IO.MemoryStream($decryptedBytes)
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream($memoryStream, $decryptor, [System.Security.Cryptography.CryptoStreamMode]::Read)
+$streamReader = New-Object System.IO.StreamReader($cryptoStream)
+$decryptedText = $streamReader.ReadToEnd()
+$memoryStream.Close()
+$cryptoStream.Close()
+$decryptedText
