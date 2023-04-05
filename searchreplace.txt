@@ -1,5 +1,5 @@
 # Specify the array of paths to search
-$paths = @("C:\Path1", "C:\Path2")
+$paths = @("C:\temp\path1", "D:\temp\path2")
 
 # Specify the search string and the replacement string
 $searchString = "mystring"
@@ -10,6 +10,9 @@ $output = @()
 
 # Loop through each path in the array
 foreach ($path in $paths) {
+    # Get the server name from the UNC path
+    $serverName = $path.Split('\')[2]
+
     # Get all files with the .config extension in the current path
     $files = Get-ChildItem -Path $path -Recurse -Include "*.config" -File
 
@@ -21,8 +24,9 @@ foreach ($path in $paths) {
             $newContent = $content.Replace($searchString, $replacementString)
             Set-Content $file.FullName $newContent
 
-            # Add the file path to the output array
-            $output += "Replaced string in $($file.FullName)."
+            # Add the file path with the server name to the output array
+            $filePath = "\\$serverName\$($file.FullName -replace ':\\', '$\')"
+            $output += "Replaced string in $($filePath)."
         }
     }
 }
