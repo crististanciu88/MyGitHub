@@ -1,52 +1,37 @@
-using System;
-using System.IO;
-using System.Security.Cryptography;
-using System.Text;
-
-class Program
-{
-    static void Main(string[] args)
-    {
-        if (args.Length < 2)
-        {
-            Console.WriteLine("Usage: encrypt inputstring encryptionkey");
-            return;
-        }
-
-        string inputString = args[0];
-        string encryptionKey = args[1];
-
-        byte[] encrypted = EncryptStringToBytes(inputString, encryptionKey);
-
-        Console.WriteLine("Encrypted result:");
-        Console.WriteLine(Convert.ToBase64String(encrypted));
+function Get-DecryptedValuesFromFile {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$EncryptionKey
+    )
+    
+    # Read the file contents
+    $fileContents = Get-Content -Path $FilePath -Raw
+    
+    # Define the regular expression pattern
+    $pattern = 'cryptdata="([^"]+)"'
+    
+    # Use the regular expression to find matches in the file contents
+    $matches = [regex]::Matches($fileContents, $pattern)
+    
+    # Loop through the matches and extract the captured group
+    $encryptedValues = foreach ($match in $matches) {
+        $match.Groups[1].Value
     }
-
-    static byte[] EncryptStringToBytes(string plainText, string key)
-    {
-        byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-        byte[] iv = new byte[16]; // CBC mode requires an Initialization Vector (IV), which should be a unique random value for each encryption
-
-        using (RijndaelManaged rijAlg = new RijndaelManaged())
-        {
-            rijAlg.Key = keyBytes;
-            rijAlg.Mode = CipherMode.CBC; // Use Cipher Block Chaining (CBC) mode
-            rijAlg.Padding = PaddingMode.PKCS7; // Use PKCS7 padding
-
-            ICryptoTransform encryptor = rijAlg.CreateEncryptor(rijAlg.Key, iv);
-
-            using (MemoryStream msEncrypt = new MemoryStream())
-            {
-                using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                {
-                    using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
-                    {
-                        swEncrypt.Write(plainText);
-                    }
-
-                    return msEncrypt.ToArray();
-                }
-            }
+    
+    # Try to decrypt each encrypted value using the Decrypt-String function
+    $decryptedValues = foreach ($encryptedValue in $encryptedValues) {
+        try {
+            Decrypt-String -EncryptedValue $encryptedValue -EncryptionKey $EncryptionKey
+        }
+        catch {
+            Write-Error "Error decrypting value: $_"
         }
     }
+    
+    # Return the decrypted values
+    return $decryptedValues
 }
