@@ -1,43 +1,36 @@
-function Get-DecryptedValuesFromFile {
-    [CmdletBinding()]
+function Decrypt-String {
     param (
         [Parameter(Mandatory = $true)]
-        [string]$FilePath,
-        
+        [string]$EncryptedString,
+
         [Parameter(Mandatory = $true)]
-        [string]$EncryptionKey
+        [string]$Key,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Algorithm = "Rijndael"
     )
-    
-    # Read the file contents
-    $fileContents = Get-Content -Path $FilePath -Raw
-    
-    # Define the regular expression pattern
-    $pattern = 'cryptdata="([^"]+)"'
-    
-    # Use the regular expression to find matches in the file contents
-    $matches = [regex]::Matches($fileContents, $pattern)
-    
-    # Loop through the matches and extract the captured group
-    $encryptedValues = foreach ($match in $matches) {
-        $match.Groups[1].Value
-    }
-    
-    # Try to decrypt each encrypted value using the Decrypt-String function
-    $decryptedValues = foreach ($encryptedValue in $encryptedValues) {
-        try {
-            Decrypt-String -EncryptedValue $encryptedValue -EncryptionKey $EncryptionKey
-        }
-        catch {
-            Write-Error "Error decrypting value: $_"
-        }
-    }
-    
-    # Return the decrypted values
-    return $decryptedValues
+
+    $keyBytes = [System.Text.Encoding]::UTF8.GetBytes($Key)
+    $encryptedBytes = [System.Convert]::FromBase64String($EncryptedString)
+
+    $algorithm = [System.Security.Cryptography.SymmetricAlgorithm]::Create($Algorithm)
+    $algorithm.Key = $keyBytes
+
+    $iv = New-Object byte[] $algorithm.IV.Length
+    $algorithm.IV.CopyTo($iv, 0)
+
+    $decryptor = $algorithm.CreateDecryptor($keyBytes, $iv)
+    $plainBytes = $decryptor.TransformFinalBlock($encryptedBytes, 0, $encryptedBytes.Length)
+
+    $plainText = [System.Text.Encoding]::UTF8.GetString($plainBytes)
+    return $plainText.TrimEnd([char]0)
 }
-This updated function takes an additional parameter, $EncryptionKey, which is passed to the Decrypt-String function to decrypt each encrypted value. It uses a foreach loop to try to decrypt each encrypted value and writes an error message if there is an error during decryption. Finally, it returns an array of decrypted values.
 
+# Example usage:
+$encryptedString = "7XNN72LHpmew6v40g6ndzV7PrjIWq4u/z7vJo8DQWcQ="
+$key = "mysecretkey"
+$algorithm = "Rijndael"
 
-
-
+$decryptedString = Decrypt-String -EncryptedString $encryptedString -Key $key -Algorithm $algorithm
+Write-Host "Decrypted string: $decryptedString"
 
