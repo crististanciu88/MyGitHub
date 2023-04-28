@@ -1,0 +1,19 @@
+# Set artifact coordinates
+$groupId = "com.example"
+$artifactId = "example-artifact"
+$version = "1.0.0"
+
+# Create POM file
+$xml = [xml]@"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>$groupId</groupId>
+  <artifactId>$artifactId</artifactId>
+  <version>$version</version>
+  <packaging>zip</packaging>
+</project>
+"@
+
+# Save POM file
+$xml.Save("$artifactId.pom")
