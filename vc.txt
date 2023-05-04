@@ -1,1 +1,33 @@
+$servers = @("Server1", "Server2", "Server3") # Replace with your array of server names
 
+foreach ($server in $servers) {
+    Write-Host "Checking VC++ Redistributable versions on $server..."
+    $regPath = "SOFTWARE\Microsoft\VisualStudio"
+    $versions = @()
+
+    try {
+        $regKey = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, $server)
+        $subKey = $regKey.OpenSubKey($regPath)
+        
+        foreach ($keyName in $subKey.GetSubKeyNames()) {
+            if ($keyName.StartsWith("VC")) {
+                $key = $subKey.OpenSubKey($keyName)
+                $version = $key.GetValue("Version")
+                $versions += "$keyName $version"
+            }
+        }
+
+        if ($versions) {
+            Write-Host "VC++ Redistributable versions found on $server:"
+            foreach ($version in $versions) {
+                Write-Host "- $version"
+            }
+        }
+        else {
+            Write-Host "No VC++ Redistributable versions found on $server."
+        }
+    }
+    catch {
+        Write-Host "Error checking VC++ Redistributable versions on $server: $_"
+    }
+}
