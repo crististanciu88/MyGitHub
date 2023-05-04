@@ -1,25 +1,38 @@
 $servers = @("Server1", "Server2", "Server3") # Replace with your array of server names
 
-foreach ($server in $servers) {
+$output = foreach ($server in $servers) {
     Write-Host "Checking VC++ Redistributable versions on $server..."
     $scriptBlock = {
         try {
-            $versions = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "Microsoft Visual C++ Redistributable*"} | Select-Object -Property ComputerName, Name, Version
+            $versions = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "Microsoft Visual C++ Redistributable*"} | Select-Object -Property Name, Version
 
             if ($versions) {
-                Write-Host "VC++ Redistributable versions found on $($env:COMPUTERNAME):"
                 foreach ($version in $versions) {
-                    Write-Host "- $($version.ComputerName): $($version.Name) $($version.Version)"
+                    [PSCustomObject]@{
+                        Server = $env:COMPUTERNAME
+                        Name = $version.Name
+                        Version = $version.Version
+                    }
                 }
             }
             else {
-                Write-Host "No VC++ Redistributable versions found on $($env:COMPUTERNAME)."
+                [PSCustomObject]@{
+                    Server = $env:COMPUTERNAME
+                    Name = "No VC++ Redistributable versions found"
+                    Version = ""
+                }
             }
         }
         catch {
-            Write-Host "Error checking VC++ Redistributable versions on $($env:COMPUTERNAME): $_"
+            [PSCustomObject]@{
+                Server = $env:COMPUTERNAME
+                Name = "Error checking VC++ Redistributable versions"
+                Version = $_.Exception.Message
+            }
         }
     }
 
     Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock
 }
+
+$output | Format-Table -AutoSize
