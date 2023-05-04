@@ -3,23 +3,13 @@ $servers = @("Server1", "Server2", "Server3") # Replace with your array of serve
 foreach ($server in $servers) {
     Write-Host "Checking VC++ Redistributable versions on $server..."
     $scriptBlock = {
-        $regPath = "SOFTWARE\Microsoft\VisualStudio"
-        $versions = @()
-
         try {
-            $subKey = Get-ItemProperty "HKLM:\$regPath"
-            foreach ($keyName in $subKey.GetSubKeyNames()) {
-                if ($keyName.StartsWith("VC")) {
-                    $key = Get-ItemProperty "HKLM:\$regPath\$keyName"
-                    $version = $key.Version
-                    $versions += "$keyName $version"
-                }
-            }
+            $versions = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "Microsoft Visual C++ Redistributable*"} | Select-Object -Property Name, Version
 
             if ($versions) {
                 Write-Host "VC++ Redistributable versions found on $($env:COMPUTERNAME):"
                 foreach ($version in $versions) {
-                    Write-Host "- $version"
+                    Write-Host "- $($version.Name) $($version.Version)"
                 }
             }
             else {
