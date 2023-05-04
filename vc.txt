@@ -4,12 +4,12 @@ foreach ($server in $servers) {
     Write-Host "Checking VC++ Redistributable versions on $server..."
     $scriptBlock = {
         try {
-            $versions = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "Microsoft Visual C++ Redistributable*"} | Select-Object -Property Name, Version
+            $versions = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "Microsoft Visual C++ Redistributable*"} | Select-Object -Property ComputerName, Name, Version
 
             if ($versions) {
                 Write-Host "VC++ Redistributable versions found on $($env:COMPUTERNAME):"
                 foreach ($version in $versions) {
-                    Write-Host "- $($version.Name) $($version.Version)"
+                    Write-Host "- $($version.ComputerName): $($version.Name) $($version.Version)"
                 }
             }
             else {
