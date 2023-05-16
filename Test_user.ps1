@@ -1,3 +1,38 @@
+function Get-ServicesByUser {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$ServerName,
+
+        [Parameter(Mandatory=$true)]
+        [string]$Username
+    )
+
+    try {
+        $scriptBlock = {
+            param($user)
+            $services = Get-WmiObject -Class Win32_Service -Filter "StartName='$user'"
+
+            if ($services) {
+                foreach ($service in $services) {
+                    [PSCustomObject]@{
+                        ServiceName = $service.Name
+                        Status = $service.State
+                        ServerName = $env:COMPUTERNAME
+                    }
+                }
+            }
+            else {
+                Write-Host "No services found running under user $user."
+            }
+        }
+
+        $result = Invoke-Command -ComputerName $ServerName -ScriptBlock $scriptBlock -ArgumentList $Username
+        $result | Format-Table -AutoSize
+    }
+    catch {
+        Write-Host "An error occurred while retrieving services: $($_.Exception.Message)"
+    }
+}
 function Update-ServicePasswordAndRestart {
     param (
         [Parameter(Mandatory=$true)]
