@@ -1,0 +1,34 @@
+$oidUrl = "http://oid.test.com:4032/api/users/{userId}"  # Replace with the actual OID URL
+$userId = "123456"  # Replace with the user ID you want to query
+
+# Set the credentials for the service account
+$username = "service_account_username"
+$password = "service_account_password"
+
+# Create a WebClient object to send the HTTP request
+$webClient = New-Object System.Net.WebClient
+
+# Set the credentials for the service account
+$webClient.Credentials = New-Object System.Net.NetworkCredential($username, $password)
+
+try {
+    # Construct the full URL by replacing the placeholder {userId} with the actual user ID
+    $url = $oidUrl -replace "{userId}", $userId
+
+    # Send the HTTP request and retrieve the response
+    $response = $webClient.DownloadString($url)
+
+    # Process the response
+    # Replace the following lines with your own logic to parse and handle the response
+    Write-Host "Response received:"
+    Write-Host $response
+}
+catch {
+    # Handle any errors that occurred during the request
+    Write-Host "Error occurred during the request:"
+    Write-Host $_.Exception.Message
+}
+finally {
+    # Clean up the WebClient object
+    $webClient.Dispose()
+}
