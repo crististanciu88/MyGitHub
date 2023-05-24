@@ -1,7 +1,8 @@
-# Set the registry path for TLS settings
+# Set the registry paths for TLS settings and Microsoft cryptography ciphers
 $tlsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols"
+$ciphersPath = "HKLM:\SOFTWARE\Microsoft\Cryptography\Configuration\SSL\00010002"
 
-# Retrieve the TLS, SSL, and SchUseStrongCrypto settings from the registry
+# Retrieve the TLS settings from the registry
 $tlsSettings = Get-ChildItem -Path $tlsPath -Recurse |
     Where-Object { $_.Name -notmatch "DisabledByDefault|Client|Server" } |
     ForEach-Object {
@@ -18,5 +19,11 @@ $tlsSettings = Get-ChildItem -Path $tlsPath -Recurse |
         }
     }
 
-# Display the TLS, SSL, and SchUseStrongCrypto settings in a table
+# Retrieve the Microsoft cryptography cipher settings from the registry
+$cipherSettings = Get-ItemProperty -Path $ciphersPath -ErrorAction SilentlyContinue |
+    Select-Object -Property PSChildName, Enabled
+
+# Display the TLS, SSL, SchUseStrongCrypto, and Microsoft cryptography cipher settings in a table
 $tlsSettings | Format-Table -AutoSize
+Write-Host "`nMicrosoft Cryptography Ciphers:`n"
+$cipherSettings | Format-Table -AutoSize
