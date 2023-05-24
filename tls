@@ -1,0 +1,22 @@
+# Set the registry path for TLS settings
+$tlsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols"
+
+# Retrieve the TLS, SSL, and SchUseStrongCrypto settings from the registry
+$tlsSettings = Get-ChildItem -Path $tlsPath -Recurse |
+    Where-Object { $_.Name -notmatch "DisabledByDefault|Client|Server" } |
+    ForEach-Object {
+        $protocol = $_.PSChildName
+        $enabled = (Get-ItemProperty -Path "$tlsPath\$protocol").Enabled
+        $sslSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\SSL 3.0").Enabled
+        $strongCryptoSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\CipherSuites\*\RC4 128/128").Enabled
+
+        [PSCustomObject]@{
+            Protocol = $protocol
+            Enabled = $enabled
+            SSLEnabled = $sslSetting
+            SchUseStrongCrypto = $strongCryptoSetting
+        }
+    }
+
+# Display the TLS, SSL, and SchUseStrongCrypto settings in a table
+$tlsSettings | Format-Table -AutoSize
