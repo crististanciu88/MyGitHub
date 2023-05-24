@@ -6,15 +6,15 @@ $tlsSettings = Get-ChildItem -Path $tlsPath -Recurse |
     Where-Object { $_.Name -notmatch "DisabledByDefault|Client|Server" } |
     ForEach-Object {
         $protocol = $_.PSChildName
-        $enabled = (Get-ItemProperty -Path "$tlsPath\$protocol" -ErrorAction SilentlyContinue)?.Enabled
-        $sslSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\SSL 3.0" -ErrorAction SilentlyContinue)?.Enabled
-        $strongCryptoSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\CipherSuites\*\RC4 128/128" -ErrorAction SilentlyContinue)?.Enabled
+        $enabled = (Get-ItemProperty -Path "$tlsPath\$protocol" -ErrorAction SilentlyContinue).Enabled
+        $sslSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\SSL 3.0" -ErrorAction SilentlyContinue).Enabled
+        $strongCryptoSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\CipherSuites\*\RC4 128/128" -ErrorAction SilentlyContinue).Enabled
 
         [PSCustomObject]@{
             Protocol = $protocol
-            Enabled = $enabled ?? "N/A"
-            SSLEnabled = $sslSetting ?? "N/A"
-            SchUseStrongCrypto = $strongCryptoSetting ?? "N/A"
+            Enabled = if ($enabled) { $enabled } else { "N/A" }
+            SSLEnabled = if ($sslSetting) { $sslSetting } else { "N/A" }
+            SchUseStrongCrypto = if ($strongCryptoSetting) { $strongCryptoSetting } else { "N/A" }
         }
     }
 
