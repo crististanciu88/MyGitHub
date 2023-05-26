@@ -7,7 +7,14 @@ function Parse-Files {
     )
 
     $FileExtensions = @('.config', '.xml', '.bat')
-    $RegexPattern = '\$\{EncryptValue:(.+?)\}'
+    $RegexPattern = '\$\{EvaSpace:(.+?),EvaHash:(.+?),EvaSecretName:(.+?)\}'
+
+    function Get-ValueFromFunction($concatenatedString) {
+        # Replace this with your own logic to get the desired value based on the concatenated string
+        # For demonstration purposes, a sample return value is used
+        $returnValue = "SampleValue"
+        return $returnValue
+    }
 
     Get-ChildItem -Path $Path -Recurse -Include $FileExtensions |
     ForEach-Object {
@@ -16,29 +23,21 @@ function Parse-Files {
 
         $Matches = [regex]::Matches($Content, $RegexPattern)
         foreach ($Match in $Matches) {
-            $EncryptValue = $Match.Groups[1].Value
-            $Values = [regex]::Matches($EncryptValue, '([^,]+?):([^,}]+)')
-            $Variables = @{}
+            $EvaSpace = $Match.Groups[1].Value
+            $EvaHash = $Match.Groups[2].Value
+            $EvaSecretName = $Match.Groups[3].Value
 
-            foreach ($Value in $Values) {
-                $VariableName = $Value.Groups[1].Value
-                $VariableValue = $Value.Groups[2].Value
-                $Variables[$VariableName] = $VariableValue
-            }
+            $ConcatenatedString = "$EvaSpace/$EvaHash/$EvaSecretName"
+            $Value = Get-ValueFromFunction -concatenatedString $ConcatenatedString
 
-            $Variables['EncryptValue'] = $EncryptValue
+            $Replacement = '${EvaSpace:' + $EvaSpace + ',EvaHash:' + $EvaHash + ',EvaSecretName:' + $EvaSecretName + '}'
+            $Content = $Content -replace [regex]::Escape($Match.Value), $Value
 
-            foreach ($Variable in $Variables.GetEnumerator()) {
-                New-Variable -Name $Variable.Key -Value $Variable.Value -Scope Script
-            }
+            Set-Content -Path $FilePath -Value $Content
 
-            # Perform any desired actions with the extracted variables
-            # For example, display them:
-            Write-Host "Variables extracted from $FilePath:"
-            foreach ($Variable in $Variables.GetEnumerator()) {
-                Write-Host "$($Variable.Key) = $($Variable.Value)"
-            }
-            Write-Host
+            # Perform any desired actions with the replaced value
+            # For example, display it:
+            Write-Host "Replaced value in $FilePath: $Value"
         }
     }
 }
