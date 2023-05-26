@@ -7,12 +7,13 @@ function Parse-Files {
     )
 
     $FileExtensions = @('.config', '.xml', '.bat')
-    $RegexPattern = '\$\{EvaSpace:(.+?),EvaHash:(.+?),EvaSecretName:(.+?)\}'
+    $RegexPattern1 = '\$\{EvaSpace:(.+?),EvaHash:(.+?),EvaSecretName:(.+?)\}'
+    $RegexPattern2 = '\$\{EncryptValue:(.+?);CryptOption:(.+?)\}'
 
-    function Get-ValueFromFunction($concatenatedString) {
-        # Replace this with your own logic to get the desired value based on the concatenated string
+    function Get-ValueFromFunction($encryptValue, $cryptOption) {
+        # Replace this with your own logic to get the desired value based on the EncryptValue and CryptOption
         # For demonstration purposes, a sample return value is used
-        $returnValue = "SampleValue"
+        $returnValue = "EncryptedValue"
         return $returnValue
     }
 
@@ -21,23 +22,38 @@ function Parse-Files {
         $FilePath = $_.FullName
         $Content = Get-Content -Path $FilePath -Raw
 
-        $Matches = [regex]::Matches($Content, $RegexPattern)
-        foreach ($Match in $Matches) {
+        $Matches1 = [regex]::Matches($Content, $RegexPattern1)
+        foreach ($Match in $Matches1) {
             $EvaSpace = $Match.Groups[1].Value
             $EvaHash = $Match.Groups[2].Value
             $EvaSecretName = $Match.Groups[3].Value
 
             $ConcatenatedString = "$EvaSpace/$EvaHash/$EvaSecretName"
-            $Value = Get-ValueFromFunction -concatenatedString $ConcatenatedString
+            $Value = Get-ValueFromFunction -encryptValue $ConcatenatedString -cryptOption $EvaSecretName
 
             $Replacement = '${EvaSpace:' + $EvaSpace + ',EvaHash:' + $EvaHash + ',EvaSecretName:' + $EvaSecretName + '}'
             $Content = $Content -replace [regex]::Escape($Match.Value), $Value
-
-            Set-Content -Path $FilePath -Value $Content
 
             # Perform any desired actions with the replaced value
             # For example, display it:
             Write-Host "Replaced value in $FilePath: $Value"
         }
+
+        $Matches2 = [regex]::Matches($Content, $RegexPattern2)
+        foreach ($Match in $Matches2) {
+            $EncryptValue = $Match.Groups[1].Value
+            $CryptOption = $Match.Groups[2].Value
+
+            $Value = Encryptpass -encryptValue $EncryptValue -cryptOption $CryptOption
+
+            $Replacement = '${EncryptValue:' + $EncryptValue + ';CryptOption:' + $CryptOption + '}'
+            $Content = $Content -replace [regex]::Escape($Match.Value), $Value
+
+            # Perform any desired actions with the replaced value
+            # For example, display it:
+            Write-Host "Replaced value in $FilePath: $Value"
+        }
+
+        Set-Content -Path $FilePath -Value $Content
     }
 }
