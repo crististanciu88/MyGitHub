@@ -1,7 +1,18 @@
-set SERVER_NAME=Server1
+@echo off
 
-%windir%\system32\inetsrv\appcmd.exe list apppool /state:Started | %windir%\system32\inetsrv\appcmd.exe recycle apppool /in /t "%SERVER_NAME%"
+set APPCMD_PATH=C:\Windows\System32\inetsrv\appcmd.exe
+set PSEXEC_PATH=C:\Path\To\PsExec\psexec.exe
 
-set SERVER_NAME=Server1
+for %%S in (
+    server1test.net
+    server2test.net
+    server3test.net
+) do (
+    echo Recycling application pools on %%S
+    %PSEXEC_PATH% \\%%S -s -accepteula -c "%APPCMD_PATH%" list apppool /state:Started | findstr "appPool.name" | for /F "tokens=2 delims=:" %%G in ('findstr /R /C:"\""') do (
+        %PSEXEC_PATH% \\%%S -s -accepteula -c "%APPCMD_PATH%" recycle apppool /apppool.name:"%%G"
+    )
+    echo.
+)
 
-%windir%\system32\inetsrv\appcmd.exe list apppool /state:Started | findstr /I "appPool.name" | %windir%\system32\inetsrv\appcmd.exe recycle apppool /t "%SERVER_NAME%"
+pause
