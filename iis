@@ -1,3 +1,8 @@
 %windir%\system32\inetsrv\appcmd.exe recycle apppool "NameOfAppPool"
 
 %windir%\system32\inetsrv\appcmd.exe recycle app /app.name:"Default Web Site"
+
+set SERVER_NAME=RemoteServerName
+set SITE_NAME=Default Web Site
+
+%windir%\system32\inetsrv\appcmd.exe recycle app /app.name:"%SITE_NAME%" /t "%SERVER_NAME%"
