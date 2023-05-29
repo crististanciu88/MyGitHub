@@ -1,8 +1,7 @@
-%windir%\system32\inetsrv\appcmd.exe recycle apppool "NameOfAppPool"
+set SERVER_NAME=Server1
 
-%windir%\system32\inetsrv\appcmd.exe recycle app /app.name:"Default Web Site"
+%windir%\system32\inetsrv\appcmd.exe list apppool /state:Started | %windir%\system32\inetsrv\appcmd.exe recycle apppool /in /t "%SERVER_NAME%"
 
-set SERVER_NAME=RemoteServerName
-set SITE_NAME=Default Web Site
+set SERVER_NAME=Server1
 
-%windir%\system32\inetsrv\appcmd.exe recycle app /app.name:"%SITE_NAME%" /t "%SERVER_NAME%"
+%windir%\system32\inetsrv\appcmd.exe list apppool /state:Started | findstr /I "appPool.name" | %windir%\system32\inetsrv\appcmd.exe recycle apppool /t "%SERVER_NAME%"
