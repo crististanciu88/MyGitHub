@@ -1,0 +1,3 @@
+%windir%\system32\inetsrv\appcmd.exe recycle apppool "NameOfAppPool"
+
+%windir%\system32\inetsrv\appcmd.exe recycle app /app.name:"Default Web Site"
