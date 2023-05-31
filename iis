@@ -1,18 +1,8 @@
-@echo off
+# Specify the application name and output file path
+$applicationName = "YourApplicationName"
+$outputFilePath = "C:\Path\To\Output\File.xml"
 
-set APPCMD_PATH=C:\Windows\System32\inetsrv\appcmd.exe
-set PSEXEC_PATH=C:\Path\To\PsExec\psexec.exe
+# Export IIS application configuration to XML
+Export-IISConfiguration -Location "IIS:\Sites\$applicationName" -ChildPath "/config" -OutputPath $outputFilePath
 
-for %%S in (
-    server1test.net
-    server2test.net
-    server3test.net
-) do (
-    echo Recycling application pools on %%S
-    %PSEXEC_PATH% \\%%S -s -accepteula -c "%APPCMD_PATH%" list apppool /state:Started | findstr "appPool.name" | for /F "tokens=2 delims=:" %%G in ('findstr /R /C:"\""') do (
-        %PSEXEC_PATH% \\%%S -s -accepteula -c "%APPCMD_PATH%" recycle apppool /apppool.name:"%%G"
-    )
-    echo.
-)
-
-pause
+Write-Host "Configuration exported to $outputFilePath"
