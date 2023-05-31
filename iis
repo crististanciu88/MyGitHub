@@ -1,19 +1,10 @@
-# Specify the application name and output file path
-$applicationName = "YourApplicationName"
+# Specify the output file path
 $outputFilePath = "C:\Path\To\Output\File.xml"
 
-# Export IIS application configuration to XML
-Export-IISConfiguration -Location "IIS:\Sites\$applicationName" -ChildPath "/config" -OutputPath $outputFilePath
+# Export IIS application pool configuration to XML
+$cmdOutput = & "$env:windir\system32\inetsrv\appcmd" list apppool /config /xml
 
-Write-Host "Configuration exported to $outputFilePath"
-
-
-# Specify the application name and output file path
-$applicationName = "YourApplicationName"
-$outputFilePath = "C:\Path\To\Output\File.xml"
-
-# Export IIS application configuration to XML
-$config = Get-WebConfiguration "/system.applicationHost/sites/site[@name='$applicationName']" | Select-Object -ExpandProperty ApplicationDefaults
-$config | Export-Clixml -Path $outputFilePath
+# Save the XML configuration to a file
+$cmdOutput | Set-Content -Path $outputFilePath -Encoding UTF8
 
 Write-Host "Configuration exported to $outputFilePath"
