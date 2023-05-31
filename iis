@@ -4,7 +4,38 @@ $outputFilePath = "C:\Path\To\Output\File.xml"
 # Export IIS application pool configuration to XML
 $cmdOutput = & "$env:windir\system32\inetsrv\appcmd" list apppool /config /xml
 
+# Transform the XML structure to match the desired configuration
+$configuration = [xml]$cmdOutput
+$appPools = $configuration.appcmd.APPPOOL
+
+$xmlTemplate = @"
+<configuration>
+    <appPools>
+        {0}
+    </appPools>
+</configuration>
+"@
+
+$appPoolsXml = $appPools | ForEach-Object {
+    $name = $_.APPPOOL.NAME
+    $managedPipelineMode = $_.APPPOOL.managedPipelineMode
+    $managedRuntimeVersion = $_.APPPOOL.managedRuntimeVersion
+
+    $appPoolXml = @"
+        <appPool>
+            <name>$name</name>
+            <managedPipelineMode>$managedPipelineMode</managedPipelineMode>
+            <managedRuntimeVersion>$managedRuntimeVersion</managedRuntimeVersion>
+        </appPool>
+"@
+
+    $appPoolXml
+}
+
+# Generate the final XML configuration
+$finalXml = $xmlTemplate -f ($appPoolsXml -join "`n")
+
 # Save the XML configuration to a file
-$cmdOutput | Set-Content -Path $outputFilePath -Encoding UTF8
+$finalXml | Set-Content -Path $outputFilePath -Encoding UTF8
 
 Write-Host "Configuration exported to $outputFilePath"
