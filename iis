@@ -6,36 +6,40 @@ $cmdOutput = & "$env:windir\system32\inetsrv\appcmd" list apppool /config /xml
 
 # Transform the XML structure to match the desired configuration
 $configuration = [xml]$cmdOutput
-$appPools = $configuration.appcmd.APPPOOL
+$appPools = $configuration.configuration.appPools
 
-$xmlTemplate = @"
-<configuration>
-    <appPools>
-        {0}
-    </appPools>
-</configuration>
-"@
+# Create a new XML document with the desired structure
+$newXmlDoc = New-Object System.Xml.XmlDocument
+$newXmlDoc.LoadXml("<configuration><appPools></appPools></configuration>")
+$newXmlRoot = $newXmlDoc.SelectSingleNode("/configuration/appPools")
 
-$appPoolsXml = $appPools | ForEach-Object {
-    $name = $_.APPPOOL.NAME
-    $managedPipelineMode = $_.APPPOOL.managedPipelineMode
-    $managedRuntimeVersion = $_.APPPOOL.managedRuntimeVersion
+# Loop through each app pool in the original XML and populate the new XML document
+foreach ($appPool in $appPools.appPool) {
+    $name = $appPool.SelectSingleNode("add[@name]").GetAttribute("name")
+    $managedPipelineMode = $appPool.SelectSingleNode("add[@name]").GetAttribute("managedPipelineMode")
+    $managedRuntimeVersion = $appPool.SelectSingleNode("add[@name]").GetAttribute("managedRuntimeVersion")
 
-    $appPoolXml = @"
-        <appPool>
-            <name>$name</name>
-            <managedPipelineMode>$managedPipelineMode</managedPipelineMode>
-            <managedRuntimeVersion>$managedRuntimeVersion</managedRuntimeVersion>
-        </appPool>
-"@
-
-    $appPoolXml
+    # Create a new appPool node in the new XML document
+    $newAppPool = $newXmlDoc.CreateElement("appPool")
+    
+    # Create and append child nodes with the extracted values
+    $newNameNode = $newXmlDoc.CreateElement("name")
+    $newNameNode.InnerText = $name
+    $newAppPool.AppendChild($newNameNode)
+    
+    $newPipelineNode = $newXmlDoc.CreateElement("managedPipelineMode")
+    $newPipelineNode.InnerText = $managedPipelineMode
+    $newAppPool.AppendChild($newPipelineNode)
+    
+    $newRuntimeNode = $newXmlDoc.CreateElement("managedRuntimeVersion")
+    $newRuntimeNode.InnerText = $managedRuntimeVersion
+    $newAppPool.AppendChild($newRuntimeNode)
+    
+    # Append the appPool node to the new XML document's root
+    $newXmlRoot.AppendChild($newAppPool)
 }
 
-# Generate the final XML configuration
-$finalXml = $xmlTemplate -f ($appPoolsXml -join "`n")
-
-# Save the XML configuration to a file
-$finalXml | Set-Content -Path $outputFilePath -Encoding UTF8
+# Save the new XML configuration to a file
+$newXmlDoc.Save($outputFilePath)
 
 Write-Host "Configuration exported to $outputFilePath"
