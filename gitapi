@@ -1,0 +1,20 @@
+# Get the branch name from an external repo
+$externalRepo = "https://gitlab.com/external/repo.git"
+$branchName = git ls-remote --heads $externalRepo | Select-String -Pattern "refs/heads/" | ForEach-Object { $_ -replace ".*refs/heads/", "" }
+
+# Check if the branch contains a specific branch
+$specificBranch = "feature-x"
+if ($branchName -contains $specificBranch) {
+  # Get the build.env file from that branch
+  git clone --branch $specificBranch --depth 1 $externalRepo
+  $buildEnv = Get-Content "$specificBranch/build.env"
+} else {
+  # Connect to the external repo variables and get the version from there
+  $gitlabToken = "your-gitlab-token"
+  $projectId = "your-project-id"
+  $versionVar = "VERSION"
+  $version = Invoke-RestMethod -Uri "https://gitlab.com/api/v4/projects/$projectId/variables/$versionVar" -Headers @{ "PRIVATE-TOKEN" = $gitlabToken } | Select-Object -ExpandProperty value
+}
+
+# Do something with the build.env or version variables
+# ...
