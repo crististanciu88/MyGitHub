@@ -65,4 +65,12 @@ another-job:
   stage: test
   script:
     - echo "Testing..."
+my-job:
+  script:
+    - |
+      $envFile = Get-Content -Path "build.env"
+      foreach ($line in $envFile) {
+        $key, $value = $line -split '=', 2
+        $env:$key = $value
+      }
 
