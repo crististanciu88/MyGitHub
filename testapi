@@ -7,9 +7,11 @@ my-job:
       $packagesConfigPath = "packages.config"
       $packagesConfig = Get-Content -Path $packagesConfigPath
 
-      $updatedPackagesConfig = $packagesConfig -replace "version=`"$versionToReplace`"", "version=`"$newVersion`""
+      $pattern = '<package id="FFLib" version="[^"]+" />'
+      $updatedPackagesConfig = $packagesConfig -replace $pattern, ('<package id="FFLib" version="{0}" />' -f $newVersion)
 
       $updatedPackagesConfig | Set-Content -Path $packagesConfigPath
+
 
 
 my-job:
