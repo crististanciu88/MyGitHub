@@ -1,25 +1,15 @@
 my-job:
-  stage: my-stage
   script:
     - |
-      $accessToken = "<your_access_token>"
-      $repoId = "<repository_id>"
-      $branchName = "<branch_name>"
-      $variableKey = "<variable_key>"
-      
-      $apiUrl = "https://gitlab.com/api/v4/projects/$repoId/variables/$variableKey"
-      $headers = @{
-        "PRIVATE-TOKEN" = $accessToken
-      }
-      
-      $response = Invoke-RestMethod -Uri $apiUrl -Headers $headers
-      $variableValue = $response.value
-      
-      Write-Host "Extracted variable value: $variableValue"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "external" && $CI_PROJECT_PATH == "my-group/my-repo-a"'
+      $versionToReplace = "14.2.0.1401"
+      $newVersion = "1.0.0"
 
+      $packagesConfigPath = "packages.config"
+      $packagesConfig = Get-Content -Path $packagesConfigPath
 
+      $updatedPackagesConfig = $packagesConfig -replace "version=`"$versionToReplace`"", "version=`"$newVersion`""
+
+      $updatedPackagesConfig | Set-Content -Path $packagesConfigPath
 
 
 my-job:
