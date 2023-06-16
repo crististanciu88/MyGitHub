@@ -42,3 +42,27 @@ my-job:
       Write-Host "Extracted variable value: $variableValue"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "external" && $CI_PROJECT_PATH == "my-group/my-repo-a"'
+    
+    
+    stages:
+  - build
+  - test
+
+my-job:
+  stage: build
+  script:
+    - echo "Building..."
+  rules:
+    - exists: true
+      when: manual
+    - exists: true
+      changes:
+        - '*'
+      except:
+        - /.*rel.*/
+
+another-job:
+  stage: test
+  script:
+    - echo "Testing..."
+
