@@ -1,20 +1,13 @@
-while($true) {
-    $currentTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $cpuStatus = Get-WmiObject Win32_PerfFormattedData_PerfOS_Processor | Select-Object -ExpandProperty Name, PercentProcessorTime
-    $cpuProcesses = Get-WmiObject Win32_PerfFormattedData_PerfProc_Process | Where-Object { $_.PercentProcessorTime -gt 0 } | Sort-Object -Property PercentProcessorTime -Descending | Select-Object -Property Name, PercentProcessorTime
+ $currentTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+ $cpuStatus = Get-WmiObject Win32_PerfFormattedData_PerfOS_Processor | Select-Object Name, PercentProcessorTime
+ $cpuProcesses = Get-WmiObject Win32_PerfFormattedData_PerfProc_Process | Where-Object { $_.PercentProcessorTime -gt 0 } | Sort-Object -Property PercentProcessorTime -Descending | Select-Object -Property Name, PercentProcessorTime
 
-    $output = @"
-Current Time: $currentTime
-
-CPU Status:
+Write-Host "Current TIME:"
+Write-Host "_________________________"
+$currentTime
+Write-Host "CPU Status:"
+Write-Host "_________________________"
 $cpuStatus
-
-Processes Consuming CPU:
+Write-Host "Processes Consuming CPU:"
+Write-Host "_________________________"
 $cpuProcesses
-
-"@
-
-    $output | Out-File -Append -FilePath "CPU_Usage.txt"
-
-    Start-Sleep -Seconds 300  # Wait for 5 minutes
-}
