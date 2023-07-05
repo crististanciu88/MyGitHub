@@ -1,3 +1,3 @@
-Get-WmiObject Win32_PerfFormattedData_PerfOS_Processor | Select-Object Name, PercentProcessorTime
+Get-WmiObject Win32_PerfFormattedData_PerfOS_Processor | Select-Object -ExpandProperty Name, PercentProcessorTime
 
-Get-WmiObject Win32_PerfFormattedData_PerfProc_Process | Sort-Object -Property PercentProcessorTime -Descending | Select-Object Name, PercentProcessorTime
+Get-WmiObject Win32_PerfFormattedData_PerfProc_Process | Where-Object { $_.PercentProcessorTime -gt 0 } | Sort-Object -Property PercentProcessorTime -Descending | Select-Object -Property Name, PercentProcessorTime
