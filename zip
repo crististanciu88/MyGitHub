@@ -1,0 +1,23 @@
+# Set the source path where the specific zip file is located
+$sourcePath = "C:\Path\To\Source\SpecificFile.zip"
+
+# Set the destination path where the zip files are located
+$destinationPath = "C:\Path\To\ZipFiles"
+
+# Get all zip files in the destination path
+$zipFiles = Get-ChildItem -Path $destinationPath -Filter "*.zip"
+
+# Check if the specific zip file already exists in the destination path
+$specificFileExists = $zipFiles | Where-Object { $_.Name -eq (Get-Item $sourcePath).Name }
+
+if ($specificFileExists) {
+    Write-Host "The specific zip file is already present in the destination path."
+} else {
+    # Copy the specific zip file from the source path to the destination path
+    Copy-Item $sourcePath $destinationPath -ErrorAction SilentlyContinue
+    if ($?) {
+        Write-Host "The specific zip file has been copied to the destination path."
+    } else {
+        Write-Host "Failed to copy the specific zip file. Please check the source and destination paths."
+    }
+}
