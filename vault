@@ -1,0 +1,27 @@
+# Define the variables
+$namespace1 = "ATxxxx"
+$namespace2 = "AT2xxx"
+$loginMethod = "ldap"
+$username = "user"
+$password = "pass"
+
+# Login to the first namespace
+vault.exe login -namespace=$namespace1 -method=$loginMethod username=$username password=$password
+
+# Retrieve the secret and store it in a variable
+$secret = vault.exe kv get -namespace=$namespace1 secret/runtime/hash/user | Out-String
+
+# Trim the leading and trailing whitespaces from the secret
+$secret = $secret.Trim()
+
+# Logout from the first namespace
+vault.exe logout
+
+# Login to the second namespace
+vault.exe login -namespace=$namespace2 -method=$loginMethod username=$username password=$password
+
+# Save the secret to the second namespace
+vault.exe kv put -namespace=$namespace2 secret/deploy/hash/user2 value="$secret"
+
+# Logout from the second namespace
+vault.exe logout
