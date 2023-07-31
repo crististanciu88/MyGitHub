@@ -7,15 +7,18 @@ $pemFilePath = "C:\path\to\your\private-key.pem"
 $cert = Get-Content $certFilePath
 $pem = Get-Content $pemFilePath
 
-# Set up the SSL options using the certificate and private key
-$sslOptions = New-Object System.Net.Security.SslStreamOptions
-$sslOptions.ClientCertificates = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
-$sslOptions.ClientCertificates.Add([System.Security.Cryptography.X509Certificates.X509Certificate2]::new($cert, $pem))
+# Convert the certificate and private key data to X509Certificate2 objects
+$certObject = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($cert)
+$pemObject = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pem)
 
-# Create the HTTPS web request with the Vault URL and SSL options
+# Set up the SSL options using the certificate and private key
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+[System.Net.ServicePointManager]::ClientCertificates = [System.Security.Cryptography.X509Certificates.X509Certificate2Collection]::new()
+[System.Net.ServicePointManager]::ClientCertificates.Add($certObject)
+
+# Create the HTTPS web request with the Vault URL
 $request = [System.Net.WebRequest]::Create($vaultUrl)
 $request.Method = "GET"
-$request.ClientCertificates = $sslOptions.ClientCertificates
 
 # Send the request and handle the response if necessary
 try {
