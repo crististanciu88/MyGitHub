@@ -1,0 +1,15 @@
+# Replace these values with your actual PFX file path and password
+$pfxFilePath = "C:\path\to\your\certificate.pfx"
+$pfxPassword = "your_pfx_password"
+
+# Load the certificate and private key from the PFX file
+$certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+$certificate.Import($pfxFilePath, $pfxPassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+
+# Add the certificate to the certificate store (Personal)
+$store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "LocalMachine")
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+$store.Add($certificate)
+$store.Close()
+
+Write-Host "Certificate imported successfully."
