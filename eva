@@ -1,0 +1,30 @@
+# Replace these values with your actual Vault URL and paths to certificate and private key files
+$vaultUrl = "https://your-vault-url/v1/secret/data/your-secret-path"
+$certFilePath = "C:\path\to\your\certificate.cert"
+$pemFilePath = "C:\path\to\your\private-key.pem"
+
+# Load the certificate and private key into variables
+$cert = Get-Content $certFilePath -Raw
+$pem = Get-Content $pemFilePath -Raw
+
+# Create a secure string for the private key
+$securePem = ConvertTo-SecureString $pem -AsPlainText -Force
+
+# Create a PSCredential object with the certificate and private key
+$credentials = New-Object System.Management.Automation.PSCredential("user", $securePem)
+
+# Set up the SSL options using the certificate
+$sslOptions = New-Object System.Net.Security.SslStreamOptions
+$sslOptions.RemoteCertificateValidationCallback = { $true }
+
+# Create a session with the appropriate SSL options and credentials
+$session = New-PSSession -ComputerName $vaultUrl -CertificateThumbprint $cert -Credential $credentials -UseSSL -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck)
+
+# Make an API call to extract the secret from Vault
+$response = Invoke-RestMethod -Uri $vaultUrl -Method Get -WebSession $session
+
+# Extract the secret data from the response
+$secretData = $response.data
+
+# Display the secret data
+$secretData
