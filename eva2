@@ -1,0 +1,27 @@
+# Replace these values with your actual Vault URL and paths to certificate and private key files
+$vaultUrl = "https://your-vault-url/v1/secret/data/your-secret-path"
+$certFilePath = "C:\path\to\your\certificate.cert"
+$pemFilePath = "C:\path\to\your\private-key.pem"
+
+# Load the certificate and private key into variables
+$cert = Get-Content $certFilePath
+$pem = Get-Content $pemFilePath
+
+# Set up the SSL options using the certificate and private key
+$sslOptions = New-Object System.Net.Security.SslStreamOptions
+$sslOptions.ClientCertificates = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+$sslOptions.ClientCertificates.Add([System.Security.Cryptography.X509Certificates.X509Certificate2]::new($cert, $pem))
+
+# Create the HTTPS web request with the Vault URL and SSL options
+$request = [System.Net.WebRequest]::Create($vaultUrl)
+$request.Method = "GET"
+$request.ClientCertificates = $sslOptions.ClientCertificates
+
+# Send the request and handle the response if necessary
+try {
+    $response = $request.GetResponse()
+    # Handle the response here if needed
+    $response.Close()
+} catch {
+    Write-Host "Error: $($_.Exception.Message)"
+}
