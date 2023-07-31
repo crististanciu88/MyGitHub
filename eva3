@@ -1,0 +1,27 @@
+# Replace these values with your actual Vault URL and paths to certificate and private key files
+$vaultUrl = "https://your-vault-url/v1/secret/data/your-secret-path"
+$certFilePath = "C:\path\to\your\certificate.cert"
+$pemFilePath = "C:\path\to\your\private-key.pem"
+
+# Load the certificate and private key into variables
+$cert = Get-Content $certFilePath
+$pem = Get-Content $pemFilePath
+
+# Create a certificate object
+$certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+$certificate.Import([System.Text.Encoding]::UTF8.GetBytes($cert))
+
+# Create a private key object
+$privateKey = New-Object System.Security.Cryptography.RSACryptoServiceProvider
+$privateKey.ImportPkcs8PrivateKey([System.Convert]::FromBase64String($pem), $null)
+
+# Create a SSL certificate object from the certificate and private key
+$sslCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+$sslCert.Add($certificate)
+$sslCert.Add($privateKey)
+
+# Make the web request with the SSL certificate
+$response = Invoke-WebRequest -Uri $vaultUrl -Certificate $sslCert
+
+# Handle the response here if needed
+$response.Content
