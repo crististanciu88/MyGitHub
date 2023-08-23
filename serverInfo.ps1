@@ -1,3 +1,6 @@
+$services | Select-Object Name, StartMode, @{Name='PathName'; Expression={$_.PathName -replace '^"(.*)"$', '$1'}} | Format-Table -AutoSize
+
+
 function Get-HardwareInfo {
     [CmdletBinding()]
     param(
