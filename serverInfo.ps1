@@ -1,37 +1,41 @@
-$services | Select-Object Name, StartMode, @{Name='PathName'; Expression={$_.PathName -replace '^"(.*)"$', '$1'}} | Format-Table -AutoSize
-
-
-function Get-HardwareInfo {
+function Get-IISInfo {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
-        [string[]]$ServerNames
+        [string]$ServerName
     )
 
-    $results = @()
+    $iisInfo = Invoke-Command -ComputerName $ServerName -ScriptBlock {
+        Import-Module WebAdministration
 
-    foreach ($ServerName in $ServerNames) {
-        $hardware = Invoke-Command -ComputerName $ServerName -ScriptBlock {
-            $processor = Get-CimInstance -ClassName Win32_Processor
-            $memory = Get-CimInstance -ClassName Win32_PhysicalMemory
-            $diskC = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'C:'"
-            $diskD = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID = 'D:'"
-                    
+        $iisSites = Get-Website
+        $iisAppPools = Get-WebAppPoolState
+
+        $iisSitesInfo = $iisSites | ForEach-Object {
+            $bindings = $_.Bindings.Collection | ForEach-Object {
+                $bindingInfo = $_.EndPoint
+                [PSCustomObject]@{
+                    'Protocol' = $bindingInfo.Protocol
+                    'Port' = $bindingInfo.Port
+                }
+            }
+
             [PSCustomObject]@{
-                'ServerName' = $env:COMPUTERNAME
-                'ProcessorName' = $processor.Name
-                'NumberOfCores' = ($processor | Measure-Object -Property NumberOfCores -Sum).Sum
-                'TotalPhysicalMemoryGB' = [Math]::Round($memory.Capacity | Measure-Object -Sum | Select-Object -ExpandProperty Sum / 1GB)
-                'DiskCSizeGB' = [Math]::Round($diskC.Size / 1GB)
-                'DiskDSizeGB' = [Math]::Round($diskD.Size / 1GB)
+                'Name' = $_.Name
+                'State' = $_.State
+                'Bindings' = $bindings
             }
         }
 
-        $results += $hardware
+        [PSCustomObject]@{
+            'ServerName' = $env:COMPUTERNAME
+            'IIS_Sites' = $iisSitesInfo
+            'IIS_AppPools' = $iisAppPools
+        }
     }
 
-    $results | Format-Table -AutoSize
+    $iisInfo
 }
 
 # Usage
-# $hardwareInfo = Get-HardwareInfo -ServerNames @("Server1", "Server2", "Server3")
+# $iisInfo = Get-IISInfo -ServerName "ServerName"
