@@ -11,9 +11,11 @@ function Get-IISInfo {
         $iisSites = Get-Website
 
         $iisSites | ForEach-Object {
+            $bindingsInfo = $_.Bindings.Collection | ForEach-Object { "$($_.BindingInformation) ($($_.Protocol))" }
+            
             [PSCustomObject]@{
                 'SiteName' = $_.Name
-                'BindingInformation' = $_.Bindings.Collection | ForEach-Object { "$($_.BindingInformation) ($($_.Protocol))" } -join '; '
+                'BindingInformation' = $bindingsInfo -join '; '
                 'Protocol' = $_.Bindings.Collection.Protocol -join '; '
                 'PhysicalPath' = $_.PhysicalPath
                 'State' = $_.State
