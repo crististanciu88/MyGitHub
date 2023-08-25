@@ -5,37 +5,24 @@ function Get-IISInfo {
         [string]$ServerName
     )
 
-    $iisInfo = Invoke-Command -ComputerName $ServerName -ScriptBlock {
+    $iisSitesInfo = Invoke-Command -ComputerName $ServerName -ScriptBlock {
         Import-Module WebAdministration
 
         $iisSites = Get-Website
-        $iisAppPools = Get-WebAppPoolState
 
-        $iisSitesInfo = $iisSites | ForEach-Object {
-            $bindings = $_.Bindings.Collection | ForEach-Object {
-                $bindingInfo = $_.EndPoint
-                [PSCustomObject]@{
-                    'Protocol' = $bindingInfo.Protocol
-                    'Port' = $bindingInfo.Port
-                }
-            }
-
+        $iisSites | ForEach-Object {
             [PSCustomObject]@{
-                'Name' = $_.Name
+                'SiteName' = $_.Name
+                'BindingInformation' = $_.Bindings.Collection | ForEach-Object { "$($_.BindingInformation) ($($_.Protocol))" } -join '; '
+                'Protocol' = $_.Bindings.Collection.Protocol -join '; '
+                'PhysicalPath' = $_.PhysicalPath
                 'State' = $_.State
-                'Bindings' = $bindings
             }
-        }
-
-        [PSCustomObject]@{
-            'ServerName' = $env:COMPUTERNAME
-            'IIS_Sites' = $iisSitesInfo
-            'IIS_AppPools' = $iisAppPools
         }
     }
 
-    $iisInfo
+    $iisSitesInfo | Format-Table -AutoSize
 }
 
 # Usage
-# $iisInfo = Get-IISInfo -ServerName "ServerName"
+# Get-IISInfo -ServerName "ServerName"
