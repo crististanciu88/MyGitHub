@@ -1,45 +1,29 @@
-# Specify the output file path
-$outputFilePath = "C:\Path\To\Output\File.xml"
+# Define the name of the application pool you want to export
+$AppPoolName = "YourAppPoolName"
 
-# Export IIS application pool configuration to XML
-$cmdOutput = & "$env:windir\system32\inetsrv\appcmd" list apppool /config /xml
+# Define the path where you want to save the export
+$ExportPath = "C:\Backup\"
 
-# Transform the XML structure to match the desired configuration
-$configuration = [xml]$cmdOutput
-$appPools = $configuration.configuration.appPools
+# Check if the specified application pool exists
+if (Test-Path "IIS:\AppPools\$AppPoolName") {
+    # Create a directory for the export if it doesn't exist
+    $ExportDirectory = Join-Path -Path $ExportPath -ChildPath $AppPoolName
+    if (-not (Test-Path $ExportDirectory -PathType Container)) {
+        New-Item -Path $ExportDirectory -ItemType Directory
+    }
 
-# Create a new XML document with the desired structure
-$newXmlDoc = New-Object System.Xml.XmlDocument
-$newXmlDoc.LoadXml("<configuration><appPools></appPools></configuration>")
-$newXmlRoot = $newXmlDoc.SelectSingleNode("/configuration/appPools")
+    # Export the application pool configuration
+    Export-WebConfiguration -Name "IIS:\AppPools\$AppPoolName" -PSPath $ExportDirectory -FileName "AppPoolConfig.xml"
 
-# Loop through each app pool in the original XML and populate the new XML document
-foreach ($appPool in $appPools.appPool) {
-    $name = $appPool.SelectSingleNode("add[@name]").GetAttribute("name")
-    $managedPipelineMode = $appPool.SelectSingleNode("add[@name]").GetAttribute("managedPipelineMode")
-    $managedRuntimeVersion = $appPool.SelectSingleNode("add[@name]").GetAttribute("managedRuntimeVersion")
+    # Get the sites associated with the application pool
+    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $AppPoolName }
 
-    # Create a new appPool node in the new XML document
-    $newAppPool = $newXmlDoc.CreateElement("appPool")
-    
-    # Create and append child nodes with the extracted values
-    $newNameNode = $newXmlDoc.CreateElement("name")
-    $newNameNode.InnerText = $name
-    $newAppPool.AppendChild($newNameNode)
-    
-    $newPipelineNode = $newXmlDoc.CreateElement("managedPipelineMode")
-    $newPipelineNode.InnerText = $managedPipelineMode
-    $newAppPool.AppendChild($newPipelineNode)
-    
-    $newRuntimeNode = $newXmlDoc.CreateElement("managedRuntimeVersion")
-    $newRuntimeNode.InnerText = $managedRuntimeVersion
-    $newAppPool.AppendChild($newRuntimeNode)
-    
-    # Append the appPool node to the new XML document's root
-    $newXmlRoot.AppendChild($newAppPool)
+    # Export the site configurations
+    foreach ($Site in $Sites) {
+        Export-WebConfiguration -Name "IIS:\Sites\$($Site.Name)" -PSPath $ExportDirectory -FileName "$($Site.Name)_SiteConfig.xml"
+    }
+
+    Write-Host "Export completed successfully. Files saved to $ExportDirectory"
+} else {
+    Write-Host "Application pool $AppPoolName does not exist."
 }
-
-# Save the new XML configuration to a file
-$newXmlDoc.Save($outputFilePath)
-
-Write-Host "Configuration exported to $outputFilePath"
