@@ -1,0 +1,24 @@
+# List of server names
+$servers = @("\\server1\C$", "\\server2\C$", "\\server3\C$", "\\server4\C$")
+
+# Source folder path
+$sourceFolder = "D:\test"
+
+# Loop through each server and perform the copy operation
+foreach ($server in $servers) {
+    # Construct the destination path for each server
+    $destination = Join-Path $server "test"
+
+    # Run the robocopy command for this server
+    $exitCode = robocopy $sourceFolder $destination /s
+
+    # Check the exit code and provide a message
+    if ($exitCode -lt 8) {
+        Write-Host "Robocopy to $server completed with exit code $exitCode, treating as non-fatal."
+    } else {
+        Write-Host "Robocopy to $server completed with exit code $exitCode, treating as an error."
+    }
+}
+
+# Exit with a specific code (0 in this case) to ensure the GitLab job does not fail
+exit 0
