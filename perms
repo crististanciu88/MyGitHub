@@ -1,0 +1,41 @@
+# Define a list of servers and their service executable paths
+$servers = @{
+    "Server1" = "C:\Path\To\Service1.exe"
+    "Server2" = "C:\Path\To\Service2.exe"
+    # Add more servers and paths as needed
+}
+
+# Loop through the servers and their paths
+foreach ($server in $servers.Keys) {
+    $path = $servers[$server]
+
+    # Check if the file path exists on the remote server
+    if (Test-Path "\\$server\$path") {
+        try {
+            # Get the current ACL (Access Control List) for the file
+            $acl = Get-Acl "\\$server\$path"
+
+            # Remove "Authenticated Users" group from permissions
+            $acl | ForEach-Object {
+                $_.Access | Where-Object { $_.IdentityReference -match "Authenticated Users" } | ForEach-Object {
+                    $_ | % { $acl.RemoveAccessRule($_) }
+                }
+            }
+
+            # Apply the modified ACL to the file
+            Set-Acl "\\$server\$path" $acl
+
+            Write-Host "Removed 'Authenticated Users' group from permissions on $path on $server."
+        } catch {
+            Write-Host "Error removing permissions on $path on $server: $_"
+        }
+    } else {
+        Write-Host "File not found: $path on $server."
+    }
+}
+
+
+# icacls "C:\Path\To\Service.exe" /remove:g "Authenticated Users"
+
+#icacls "C:\Path\To\Service.exe" /grant:r "Authenticated Users:(RX)"
+#icacls "C:\Path\To\Service.exe" /grant:r "Authenticated Users:(RX,WD)"
