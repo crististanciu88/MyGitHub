@@ -6,39 +6,35 @@ $SourceAppPoolName = "YourAppPoolName"
 $DestinationServer = "DestinationServerName"
 $DestinationAppPoolName = "YourAppPoolName" # Use the same name on the destination server
 
-# Export the application pool configuration on the source server
-Export-WebConfiguration -Name "IIS:\AppPools\$SourceAppPoolName" -PSPath "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
+# Define the shared path accessible from both servers
+$SharedPath = "\\sharedpath\IIS"
 
-# Import the application pool configuration on the destination server
-Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
-    param($DestinationAppPoolName)
-
-    Import-WebConfiguration -PSPath "IIS:\AppPools\$Using:DestinationAppPoolName" -Path "C:\Temp\$Using:SourceAppPoolName-AppPoolConfig.xml" -Force
-
-    # Clean up the temporary configuration file
-    Remove-Item "C:\Temp\$Using:SourceAppPoolName-AppPoolConfig.xml" -Force
-} -ArgumentList $DestinationAppPoolName
+# Export the application pool configuration on the source server to the shared path
+Export-WebConfiguration -Name "IIS:\AppPools\$SourceAppPoolName" -PSPath "$SharedPath\$SourceAppPoolName-AppPoolConfig.xml" -Force
 
 # Copy site settings associated with the application pool from source to destination
 Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
-    param($SourceAppPoolName, $DestinationAppPoolName)
+    param($DestinationAppPoolName, $SharedPath)
+
+    # Import the application pool configuration from the shared path on the destination server
+    Import-WebConfiguration -PSPath "IIS:\AppPools\$Using:DestinationAppPoolName" -Path "$Using:SharedPath\$Using:DestinationAppPoolName-AppPoolConfig.xml" -Force
 
     # Get the list of sites associated with the source application pool
-    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $Using:SourceAppPoolName }
+    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $Using:DestinationAppPoolName }
 
     foreach ($Site in $Sites) {
-        # Export the site configuration on the source server
-        Export-WebConfiguration -Name "IIS:\Sites\$($Site.Name)" -PSPath "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
-
-        # Import the site configuration on the destination server
-        Import-WebConfiguration -PSPath "IIS:\Sites\$($Site.Name)" -Path "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
-
-        # Clean up the temporary configuration file
-        Remove-Item "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
+        # Import the site configuration from the shared path on the destination server
+        Import-WebConfiguration -PSPath "IIS:\Sites\$($Site.Name)" -Path "$Using:SharedPath\$($Site.Name)-SiteConfig.xml" -Force
     }
-} -ArgumentList $SourceAppPoolName, $DestinationAppPoolName
 
-# Clean up the temporary application pool configuration file on the source server
-Remove-Item "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
+    # Clean up the temporary configuration files on the destination server
+    Remove-Item "$Using:SharedPath\$Using:DestinationAppPoolName-AppPoolConfig.xml" -Force
+    $Sites | ForEach-Object {
+        Remove-Item "$Using:SharedPath\$($_.Name)-SiteConfig.xml" -Force
+    }
+} -ArgumentList $DestinationAppPoolName, $SharedPath -Credential (Get-Credential)  # Prompt for credentials
+
+# Clean up the exported application pool configuration file on the source server
+Remove-Item "$SharedPath\$SourceAppPoolName-AppPoolConfig.xml" -Force
 
 Write-Host "Synchronization completed successfully from $SourceServer to $DestinationServer."
