@@ -6,26 +6,25 @@ $SourceAppPoolName = "YourAppPoolName"
 $DestinationServer = "DestinationServerName"
 $DestinationAppPoolName = "YourAppPoolName" # Use the same name on the destination server
 
-# Copy application pool settings from source to destination
+# Export the application pool configuration on the source server
+Export-WebConfiguration -Name "IIS:\AppPools\$SourceAppPoolName" -PSPath "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
+
+# Import the application pool configuration on the destination server
 Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
-    param($SourceServer, $SourceAppPoolName, $DestinationAppPoolName)
+    param($DestinationAppPoolName)
 
-    # Export the application pool configuration on the source server
-    Export-WebConfiguration -Name "IIS:\AppPools\$SourceAppPoolName" -PSPath "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
-
-    # Import the application pool configuration on the destination server
-    Import-WebConfiguration -PSPath "IIS:\AppPools\$DestinationAppPoolName" -Path "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
+    Import-WebConfiguration -PSPath "IIS:\AppPools\$Using:DestinationAppPoolName" -Path "C:\Temp\$Using:SourceAppPoolName-AppPoolConfig.xml" -Force
 
     # Clean up the temporary configuration file
-    Remove-Item "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
-} -ArgumentList $SourceServer, $SourceAppPoolName, $DestinationAppPoolName
+    Remove-Item "C:\Temp\$Using:SourceAppPoolName-AppPoolConfig.xml" -Force
+} -ArgumentList $DestinationAppPoolName
 
 # Copy site settings associated with the application pool from source to destination
 Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
-    param($SourceServer, $SourceAppPoolName, $DestinationAppPoolName)
+    param($SourceAppPoolName, $DestinationAppPoolName)
 
     # Get the list of sites associated with the source application pool
-    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $SourceAppPoolName }
+    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $Using:SourceAppPoolName }
 
     foreach ($Site in $Sites) {
         # Export the site configuration on the source server
@@ -37,6 +36,9 @@ Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
         # Clean up the temporary configuration file
         Remove-Item "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
     }
-} -ArgumentList $SourceServer, $SourceAppPoolName, $DestinationAppPoolName
+} -ArgumentList $SourceAppPoolName, $DestinationAppPoolName
+
+# Clean up the temporary application pool configuration file on the source server
+Remove-Item "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
 
 Write-Host "Synchronization completed successfully from $SourceServer to $DestinationServer."
