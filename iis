@@ -1,29 +1,42 @@
-# Define the name of the application pool you want to export
-$AppPoolName = "YourAppPoolName"
+# Source server information
+$SourceServer = "SourceServerName"
+$SourceAppPoolName = "YourAppPoolName"
 
-# Define the path where you want to save the export
-$ExportPath = "C:\Backup\"
+# Destination server information
+$DestinationServer = "DestinationServerName"
+$DestinationAppPoolName = "YourAppPoolName" # Use the same name on the destination server
 
-# Check if the specified application pool exists
-if (Test-Path "IIS:\AppPools\$AppPoolName") {
-    # Create a directory for the export if it doesn't exist
-    $ExportDirectory = Join-Path -Path $ExportPath -ChildPath $AppPoolName
-    if (-not (Test-Path $ExportDirectory -PathType Container)) {
-        New-Item -Path $ExportDirectory -ItemType Directory
-    }
+# Copy application pool settings from source to destination
+Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
+    param($SourceServer, $SourceAppPoolName, $DestinationAppPoolName)
 
-    # Export the application pool configuration
-    Export-WebConfiguration -Name "IIS:\AppPools\$AppPoolName" -PSPath $ExportDirectory -FileName "AppPoolConfig.xml"
+    # Export the application pool configuration on the source server
+    Export-WebConfiguration -Name "IIS:\AppPools\$SourceAppPoolName" -PSPath "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
 
-    # Get the sites associated with the application pool
-    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $AppPoolName }
+    # Import the application pool configuration on the destination server
+    Import-WebConfiguration -PSPath "IIS:\AppPools\$DestinationAppPoolName" -Path "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
 
-    # Export the site configurations
+    # Clean up the temporary configuration file
+    Remove-Item "C:\Temp\$SourceAppPoolName-AppPoolConfig.xml" -Force
+} -ArgumentList $SourceServer, $SourceAppPoolName, $DestinationAppPoolName
+
+# Copy site settings associated with the application pool from source to destination
+Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
+    param($SourceServer, $SourceAppPoolName, $DestinationAppPoolName)
+
+    # Get the list of sites associated with the source application pool
+    $Sites = Get-WebSite | Where-Object { $_.AppPool.Name -eq $SourceAppPoolName }
+
     foreach ($Site in $Sites) {
-        Export-WebConfiguration -Name "IIS:\Sites\$($Site.Name)" -PSPath $ExportDirectory -FileName "$($Site.Name)_SiteConfig.xml"
-    }
+        # Export the site configuration on the source server
+        Export-WebConfiguration -Name "IIS:\Sites\$($Site.Name)" -PSPath "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
 
-    Write-Host "Export completed successfully. Files saved to $ExportDirectory"
-} else {
-    Write-Host "Application pool $AppPoolName does not exist."
-}
+        # Import the site configuration on the destination server
+        Import-WebConfiguration -PSPath "IIS:\Sites\$($Site.Name)" -Path "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
+
+        # Clean up the temporary configuration file
+        Remove-Item "C:\Temp\$($Site.Name)-SiteConfig.xml" -Force
+    }
+} -ArgumentList $SourceServer, $SourceAppPoolName, $DestinationAppPoolName
+
+Write-Host "Synchronization completed successfully from $SourceServer to $DestinationServer."
