@@ -10,7 +10,12 @@ $DestinationAppPoolName = "YourAppPoolName" # Use the same name on the destinati
 $SharedPath = "\\sharedpath\IIS"
 
 # Export the application pool configuration on the source server to the shared path
-Export-WebConfiguration -Name "IIS:\AppPools\$SourceAppPoolName" -PSPath "$SharedPath\$SourceAppPoolName-AppPoolConfig.xml" -Force
+Invoke-Command -ComputerName $SourceServer -ScriptBlock {
+    param($SourceAppPoolName, $SharedPath)
+
+    # Export the application pool configuration on the source server to the shared path
+    Export-WebConfiguration -Name "IIS:\AppPools\$Using:SourceAppPoolName" -PSPath "$Using:SharedPath\$Using:SourceAppPoolName-AppPoolConfig.xml" -Force
+} -ArgumentList $SourceAppPoolName, $SharedPath -Credential (Get-Credential)  # Prompt for credentials
 
 # Copy site settings associated with the application pool from source to destination
 Invoke-Command -ComputerName $DestinationServer -ScriptBlock {
