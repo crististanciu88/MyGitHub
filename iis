@@ -43,21 +43,41 @@ These examples illustrate how to synchronize a web application from Server 1 to 
 
 Yes, it is possible to move applications from a site on Server 1 to a site on Server 2 using MSDeploy. MSDeploy allows you to perform granular operations on IIS applications and sites, including moving or copying applications from one site to another.
 
-Here's how you can do it:
+You are correct; I apologize for the oversight. MSDeploy does not automatically create the application pool on Server 2 when copying an application from Server 1. You need to create the application pool separately on Server 2 before deploying the application. Here's an updated step-by-step process:
 
 1. **Export the Application from Server 1:**
 
-   First, you need to export the application from the source site on Server 1 into a package:
+   First, export the application from the source server (Server 1) into a package:
 
    ```plaintext
    msdeploy -verb:sync -source:appHostConfig="Site1/AppName" -dest:package=c:\AppPackage.zip
    ```
 
-   In this example, replace `"Site1"` with the name of the source site on Server 1, and `"AppName"` with the name of the application you want to move.
+   Replace `"Site1"` with the name of the source site on Server 1, and `"AppName"` with the name of the application you want to move.
 
-2. **Import the Application to Server 2:**
+2. **Export the Application Pool Configuration from Server 1:**
 
-   After exporting the application to a package, you can import it into the target site on Server 2:
+   To export the application pool configuration from Server 1, use the following command:
+
+   ```plaintext
+   msdeploy -verb:sync -source:appPoolConfig="AppPoolName" -dest:package=c:\AppPoolPackage.zip
+   ```
+
+   Replace `"AppPoolName"` with the name of the application pool associated with the application.
+
+3. **Import the Application Pool Configuration to Server 2:**
+
+   On Server 2, import the application pool configuration from the package you created in the previous step:
+
+   ```plaintext
+   msdeploy -verb:sync -source:package=c:\AppPoolPackage.zip -dest:appPoolConfig="AppPoolName" -enableLink:AppPoolExtension
+   ```
+
+   This step ensures that the same application pool configuration is present on Server 2.
+
+4. **Import the Application to Server 2:**
+
+   Now, import the application from the package to the target site on Server 2:
 
    ```plaintext
    msdeploy -verb:sync -source:package=c:\AppPackage.zip -dest:appHostConfig="Site2" -enableLink:AppPoolExtension
@@ -65,6 +85,4 @@ Here's how you can do it:
 
    Replace `"Site2"` with the name of the target site on Server 2 where you want to move the application.
 
-   - The `-enableLink:AppPoolExtension` flag helps ensure that the application's app pool settings are correctly linked to the new site.
-
-This approach allows you to effectively move an application from one site to another using MSDeploy. It creates a package from the source application's configuration and content, then deploys it to the target site on the destination server. Be sure to adjust the site names and paths according to your specific setup.
+This updated process ensures that both the application and its associated application pool are correctly moved from Server 1 to Server 2. Be sure to adjust the site and application names, as well as the application pool name, according to your specific configuration.
