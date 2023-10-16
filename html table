@@ -7,11 +7,17 @@
     <input type="file" id="fileUpload" />
     <button onclick="parseCSV()">Upload</button>
     <br><br>
+    <select id="filterColumn" onchange="filterTable()">
+        <option value="">Select Column to Filter</option>
+    </select>
     <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
     <br><br>
     <div id="tableContainer"></div>
 
     <script>
+        let tableData = [];
+        let filterColumnDropdown = document.getElementById("filterColumn");
+
         function parseCSV() {
             let file = document.getElementById("fileUpload").files[0];
             let reader = new FileReader();
@@ -19,17 +25,26 @@
             reader.onload = function (e) {
                 let contents = e.target.result;
                 let rows = contents.split("\n");
+
                 let table = "<table border='1'>";
 
                 for (let i = 0; i < rows.length; i++) {
                     table += "<tr>";
                     let cells = rows[i].split(",");
-                    for (let j = 0; j < cells.length; j++) {
-                        if (i === 0) {
+                    if (i === 0) {
+                        for (let j = 0; j < cells.length; j++) {
                             table += "<th>" + cells[j] + "</th>";
-                        } else {
-                            table += "<td>" + cells[j] + "</td>";
+                            let option = document.createElement("option");
+                            option.text = cells[j];
+                            filterColumnDropdown.add(option);
                         }
+                    } else {
+                        let rowData = [];
+                        for (let j = 0; j < cells.length; j++) {
+                            table += "<td>" + cells[j] + "</td>";
+                            rowData.push(cells[j]);
+                        }
+                        tableData.push(rowData);
                     }
                     table += "</tr>";
                 }
@@ -41,6 +56,7 @@
         }
 
         function filterTable() {
+            let selectedColumn = filterColumnDropdown.value;
             let input, filter, table, tr, td, i, txtValue;
             input = document.getElementById("filterInput");
             filter = input.value.toUpperCase();
@@ -49,15 +65,9 @@
 
             for (i = 1; i < tr.length; i++) {
                 td = tr[i].getElementsByTagName("td");
-                let found = false;
-                for (let j = 0; j < td.length; j++) {
-                    txtValue = td[j].textContent || td[j].innerText;
-                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
+                let columnValue = td[Array.prototype.findIndex.call(tr[0].getElementsByTagName("th"), function(th) { return th.innerHTML === selectedColumn; })];
+                txtValue = columnValue.textContent || columnValue.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
                     tr[i].style.display = "";
                 } else {
                     tr[i].style.display = "none";
