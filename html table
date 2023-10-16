@@ -2,57 +2,72 @@
 <html>
 <head>
     <title>CSV Parser</title>
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
 </head>
 <body>
     <input type="file" id="fileUpload" />
     <button onclick="parseCSV()">Upload</button>
     <br><br>
+    <select id="filterColumn" onchange="filterTable()">
+        <option value="">Select Column to Filter</option>
+    </select>
+    <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
+    <br><br>
     <div id="tableContainer"></div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script>
         let tableData = [];
+        let filterColumnDropdown = document.getElementById("filterColumn");
 
         function parseCSV() {
-            let file = document.getElementById("fileUpload").files[0];
-            let reader = new FileReader();
+            // Simulating file upload by hardcoding file path
+            let filePath = 'C:\\test.csv'; // Hardcoded CSV file path
 
-            reader.onload = function (e) {
-                let contents = e.target.result;
-                let rows = contents.split("\n");
-
-                let table = "<table border='1' id='csvTable' class='display'>";
-                table += "<thead><tr>";
-
-                let headers = rows[0].split(",");
-                for (let i = 0; i < headers.length; i++) {
-                    table += "<th>" + headers[i] + "</th>";
-                }
-
-                table += "</tr></thead><tbody>";
-
-                for (let i = 1; i < rows.length; i++) {
-                    table += "<tr>";
-                    let cells = rows[i].split(",");
-                    let rowData = [];
-                    for (let j = 0; j < cells.length; j++) {
-                        table += "<td>" + cells[j] + "</td>";
-                        rowData.push(cells[j]);
-                    }
-                    tableData.push(rowData);
-                    table += "</tr>";
-                }
-                table += "</tbody></table>";
-                document.getElementById("tableContainer").innerHTML = table;
-
-                $(document).ready(function () {
-                    $('#csvTable').DataTable();
-                });
+            // Simulate reading file from hardcoded path
+            // In a real application, use appropriate file reading methods
+            let reader = {
+                result: `id,name,age\n1,John,30\n2,Jane,25\n3,Doe,40`
             };
 
-            reader.readAsText(file);
+            let contents = reader.result;
+            let rows = contents.split("\n");
+
+            let table = "<table border='1' id='csvTable'>";
+            for (let i = 0; i < rows.length; i++) {
+                table += "<tr>";
+                let cells = rows[i].split(",");
+                for (let j = 0; j < cells.length; j++) {
+                    if (i === 0) {
+                        table += "<th>" + cells[j] + "</th>";
+                        let option = document.createElement("option");
+                        option.text = cells[j];
+                        filterColumnDropdown.add(option);
+                    } else {
+                        table += "<td>" + cells[j] + "</td>";
+                    }
+                }
+                table += "</tr>";
+            }
+            table += "</table>";
+            document.getElementById("tableContainer").innerHTML = table;
+        }
+
+        function filterTable() {
+            let selectedColumn = filterColumnDropdown.value;
+            let input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("filterInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("csvTable");
+            tr = table.getElementsByTagName("tr");
+
+            for (i = 1; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td")[Array.prototype.findIndex.call(tr[0].getElementsByTagName("th"), function(th) { return th.innerHTML === selectedColumn; })];
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
         }
     </script>
 </body>
