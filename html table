@@ -1,90 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>CSV Table with Filters</title>
-  <style>
-    table, th, td {
-      border: 1px solid black;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 5px;
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 5px;
-    }
-  </style>
+    <title>CSV Parser</title>
 </head>
 <body>
-  <h1>CSV Table with Filters</h1>
-  <div id="filters"></div>
-  <table id="csv-table">
-    <thead></thead>
-    <tbody></tbody>
-  </table>
-  <script src="csv-table-with-filters.js"></script>
+    <input type="file" id="fileUpload" />
+    <button onclick="parseCSV()">Upload</button>
+    <br><br>
+    <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
+    <br><br>
+    <div id="tableContainer"></div>
+
+    <script>
+        function parseCSV() {
+            let file = document.getElementById("fileUpload").files[0];
+            let reader = new FileReader();
+
+            reader.onload = function (e) {
+                let contents = e.target.result;
+                let rows = contents.split("\n");
+                let table = "<table border='1'>";
+
+                for (let i = 0; i < rows.length; i++) {
+                    table += "<tr>";
+                    let cells = rows[i].split(",");
+                    for (let j = 0; j < cells.length; j++) {
+                        if (i === 0) {
+                            table += "<th>" + cells[j] + "</th>";
+                        } else {
+                            table += "<td>" + cells[j] + "</td>";
+                        }
+                    }
+                    table += "</tr>";
+                }
+                table += "</table>";
+                document.getElementById("tableContainer").innerHTML = table;
+            };
+
+            reader.readAsText(file);
+        }
+
+        function filterTable() {
+            let input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("filterInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementsByTagName("table")[0];
+            tr = table.getElementsByTagName("tr");
+
+            for (i = 1; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td");
+                let found = false;
+                for (let j = 0; j < td.length; j++) {
+                    txtValue = td[j].textContent || td[j].innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    </script>
 </body>
 </html>
-
-
-// Get the CSV data
-const csvData = await fetch("csv-file.csv").then(response => response.text());
-
-// Parse the CSV data
-const csvDataParsed = Papa.parse(csvData);
-
-// Create the table header
-const csvTable = document.getElementById("csv-table");
-const thead = csvTable.querySelector("thead");
-const tr = document.createElement("tr");
-for (const columnHeader of csvDataParsed.meta.fields) {
-  const th = document.createElement("th");
-  th.textContent = columnHeader;
-  tr.appendChild(th);
-}
-thead.appendChild(tr);
-
-// Create the filters
-const filtersDiv = document.getElementById("filters");
-for (const columnHeader of csvDataParsed.meta.fields) {
-  const filterInput = document.createElement("input");
-  filterInput.type = "text";
-  filterInput.placeholder = `Filter by ${columnHeader}`;
-  filtersDiv.appendChild(filterInput);
-}
-
-// Add filters to the table
-const filterInputs = filtersDiv.querySelectorAll("input");
-for (const filterInput of filterInputs) {
-  filterInput.addEventListener("input", function() {
-    filterTable();
-  });
-}
-
-function filterTable() {
-  const filterValues = {};
-  for (const filterInput of filterInputs) {
-    const columnHeader = filterInput.placeholder.split("by ")[1];
-    const filterValue = filterInput.value.toLowerCase();
-    filterValues[columnHeader] = filterValue;
-  }
-
-  const rows = tbody.querySelectorAll("tr");
-  for (const row of rows) {
-    let match = true;
-    for (const columnHeader in filterValues) {
-      const cellValue = row.querySelector(`td:nth-child(${columnHeader + 1})`).textContent.toLowerCase();
-      if (!cellValue.includes(filterValues[columnHeader])) {
-        match = false;
-        break;
-      }
-    }
-
-    if (match) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
-  }
-}
