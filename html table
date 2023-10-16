@@ -18,22 +18,15 @@
 </head>
 <body>
   <h1>CSV Table with Filters</h1>
-  <input type="text" id="server-filter" placeholder="Filter by Server">
-  <input type="text" id="name-filter" placeholder="Filter by Name">
-  <input type="text" id="status-filter" placeholder="Filter by Status">
+  <div id="filters"></div>
   <table id="csv-table">
-    <thead>
-      <tr>
-        <th>Server</th>
-        <th>Name</th>
-        <th>Status</th>
-      </tr>
-    </thead>
+    <thead></thead>
     <tbody></tbody>
   </table>
   <script src="csv-table-with-filters.js"></script>
 </body>
 </html>
+
 
 // Get the CSV data
 const csvData = await fetch("csv-file.csv").then(response => response.text());
@@ -41,48 +34,54 @@ const csvData = await fetch("csv-file.csv").then(response => response.text());
 // Parse the CSV data
 const csvDataParsed = Papa.parse(csvData);
 
-// Create a table from the CSV data
+// Create the table header
 const csvTable = document.getElementById("csv-table");
-const tbody = csvTable.querySelector("tbody");
-for (const row of csvDataParsed.data) {
-  const tr = document.createElement("tr");
-  for (const column of row) {
-    const td = document.createElement("td");
-    td.textContent = column;
-    tr.appendChild(td);
-  }
-  tbody.appendChild(tr);
+const thead = csvTable.querySelector("thead");
+const tr = document.createElement("tr");
+for (const columnHeader of csvDataParsed.meta.fields) {
+  const th = document.createElement("th");
+  th.textContent = columnHeader;
+  tr.appendChild(th);
+}
+thead.appendChild(tr);
+
+// Create the filters
+const filtersDiv = document.getElementById("filters");
+for (const columnHeader of csvDataParsed.meta.fields) {
+  const filterInput = document.createElement("input");
+  filterInput.type = "text";
+  filterInput.placeholder = `Filter by ${columnHeader}`;
+  filtersDiv.appendChild(filterInput);
 }
 
 // Add filters to the table
-const serverFilterInput = document.getElementById("server-filter");
-const nameFilterInput = document.getElementById("name-filter");
-const statusFilterInput = document.getElementById("status-filter");
-
-serverFilterInput.addEventListener("input", function() {
-  filterTable();
-});
-
-nameFilterInput.addEventListener("input", function() {
-  filterTable();
-});
-
-statusFilterInput.addEventListener("input", function() {
-  filterTable();
-});
+const filterInputs = filtersDiv.querySelectorAll("input");
+for (const filterInput of filterInputs) {
+  filterInput.addEventListener("input", function() {
+    filterTable();
+  });
+}
 
 function filterTable() {
-  const serverFilter = serverFilterInput.value.toLowerCase();
-  const nameFilter = nameFilterInput.value.toLowerCase();
-  const statusFilter = statusFilterInput.value.toLowerCase();
+  const filterValues = {};
+  for (const filterInput of filterInputs) {
+    const columnHeader = filterInput.placeholder.split("by ")[1];
+    const filterValue = filterInput.value.toLowerCase();
+    filterValues[columnHeader] = filterValue;
+  }
 
   const rows = tbody.querySelectorAll("tr");
   for (const row of rows) {
-    const server = row.querySelector("td:first-child").textContent.toLowerCase();
-    const name = row.querySelector("td:nth-child(2)").textContent.toLowerCase();
-    const status = row.querySelector("td:nth-child(3)").textContent.toLowerCase();
+    let match = true;
+    for (const columnHeader in filterValues) {
+      const cellValue = row.querySelector(`td:nth-child(${columnHeader + 1})`).textContent.toLowerCase();
+      if (!cellValue.includes(filterValues[columnHeader])) {
+        match = false;
+        break;
+      }
+    }
 
-    if (server.includes(serverFilter) && name.includes(nameFilter) && status.includes(statusFilter)) {
+    if (match) {
       row.style.display = "";
     } else {
       row.style.display = "none";
