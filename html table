@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSV Table with Filters</title>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 5px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>CSV Table with Filters</h1>
+  <input type="text" id="server-filter" placeholder="Filter by Server">
+  <input type="text" id="name-filter" placeholder="Filter by Name">
+  <input type="text" id="status-filter" placeholder="Filter by Status">
+  <table id="csv-table">
+    <thead>
+      <tr>
+        <th>Server</th>
+        <th>Name</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script src="csv-table-with-filters.js"></script>
+</body>
+</html>
+
+// Get the CSV data
+const csvData = await fetch("csv-file.csv").then(response => response.text());
+
+// Parse the CSV data
+const csvDataParsed = Papa.parse(csvData);
+
+// Create a table from the CSV data
+const csvTable = document.getElementById("csv-table");
+const tbody = csvTable.querySelector("tbody");
+for (const row of csvDataParsed.data) {
+  const tr = document.createElement("tr");
+  for (const column of row) {
+    const td = document.createElement("td");
+    td.textContent = column;
+    tr.appendChild(td);
+  }
+  tbody.appendChild(tr);
+}
+
+// Add filters to the table
+const serverFilterInput = document.getElementById("server-filter");
+const nameFilterInput = document.getElementById("name-filter");
+const statusFilterInput = document.getElementById("status-filter");
+
+serverFilterInput.addEventListener("input", function() {
+  filterTable();
+});
+
+nameFilterInput.addEventListener("input", function() {
+  filterTable();
+});
+
+statusFilterInput.addEventListener("input", function() {
+  filterTable();
+});
+
+function filterTable() {
+  const serverFilter = serverFilterInput.value.toLowerCase();
+  const nameFilter = nameFilterInput.value.toLowerCase();
+  const statusFilter = statusFilterInput.value.toLowerCase();
+
+  const rows = tbody.querySelectorAll("tr");
+  for (const row of rows) {
+    const server = row.querySelector("td:first-child").textContent.toLowerCase();
+    const name = row.querySelector("td:nth-child(2)").textContent.toLowerCase();
+    const status = row.querySelector("td:nth-child(3)").textContent.toLowerCase();
+
+    if (server.includes(serverFilter) && name.includes(nameFilter) && status.includes(statusFilter)) {
+      row.style.display = "";
+    } else {
+      row.style.display = "none";
+    }
+  }
+}
