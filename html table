@@ -2,21 +2,18 @@
 <html>
 <head>
     <title>CSV Parser</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
 </head>
 <body>
     <input type="file" id="fileUpload" />
     <button onclick="parseCSV()">Upload</button>
     <br><br>
-    <select id="filterColumn" onchange="filterTable()">
-        <option value="">Select Column to Filter</option>
-    </select>
-    <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
-    <br><br>
     <div id="tableContainer"></div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script>
         let tableData = [];
-        let filterColumnDropdown = document.getElementById("filterColumn");
 
         function parseCSV() {
             let file = document.getElementById("fileUpload").files[0];
@@ -26,53 +23,36 @@
                 let contents = e.target.result;
                 let rows = contents.split("\n");
 
-                let table = "<table border='1'>";
+                let table = "<table border='1' id='csvTable' class='display'>";
+                table += "<thead><tr>";
 
-                for (let i = 0; i < rows.length; i++) {
+                let headers = rows[0].split(",");
+                for (let i = 0; i < headers.length; i++) {
+                    table += "<th>" + headers[i] + "</th>";
+                }
+
+                table += "</tr></thead><tbody>";
+
+                for (let i = 1; i < rows.length; i++) {
                     table += "<tr>";
                     let cells = rows[i].split(",");
-                    if (i === 0) {
-                        for (let j = 0; j < cells.length; j++) {
-                            table += "<th>" + cells[j] + "</th>";
-                            let option = document.createElement("option");
-                            option.text = cells[j];
-                            filterColumnDropdown.add(option);
-                        }
-                    } else {
-                        let rowData = [];
-                        for (let j = 0; j < cells.length; j++) {
-                            table += "<td>" + cells[j] + "</td>";
-                            rowData.push(cells[j]);
-                        }
-                        tableData.push(rowData);
+                    let rowData = [];
+                    for (let j = 0; j < cells.length; j++) {
+                        table += "<td>" + cells[j] + "</td>";
+                        rowData.push(cells[j]);
                     }
+                    tableData.push(rowData);
                     table += "</tr>";
                 }
-                table += "</table>";
+                table += "</tbody></table>";
                 document.getElementById("tableContainer").innerHTML = table;
+
+                $(document).ready(function () {
+                    $('#csvTable').DataTable();
+                });
             };
 
             reader.readAsText(file);
-        }
-
-        function filterTable() {
-            let selectedColumn = filterColumnDropdown.value;
-            let input, filter, table, tr, td, i, txtValue;
-            input = document.getElementById("filterInput");
-            filter = input.value.toUpperCase();
-            table = document.getElementsByTagName("table")[0];
-            tr = table.getElementsByTagName("tr");
-
-            for (i = 1; i < tr.length; i++) {
-                td = tr[i].getElementsByTagName("td");
-                let columnValue = td[Array.prototype.findIndex.call(tr[0].getElementsByTagName("th"), function(th) { return th.innerHTML === selectedColumn; })];
-                txtValue = columnValue.textContent || columnValue.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
-            }
         }
     </script>
 </body>
