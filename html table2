@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CSV Parser</title>
+    <title>Combined CSV Parser</title>
 </head>
 <body>
     <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
@@ -10,28 +10,30 @@
 
     <script>
         function fetchCSV() {
-            fetch('http://yourdomain.com/data.csv') // Replace with your network path
-            .then(response => response.text())
-            .then(data => {
-                let rows = data.split("\n");
-                let table = "<table style='border: 1px solid black; border-collapse: collapse;'>";
-                
-                for (let i = 0; i < rows.length; i++) {
-                    table += "<tr>";
-                    let cells = rows[i].split(",");
-                    for (let j = 0; j < cells.length; j++) {
-                        if (i === 0) {
-                            table += "<th style='border: 1px solid black; padding: 10px; background-color: lightgray;'>" + cells[j] + "</th>";
-                        } else {
-                            table += "<td style='border: 1px solid black; padding: 10px;'>" + cells[j] + "</td>";
+            let paths = ['http://yourdomain.com/data.csv', 'http://yourdomain.com/data2.csv']; // Replace with your network paths
+            Promise.all(paths.map(path => fetch(path)))
+                .then(responses => Promise.all(responses.map(response => response.text())))
+                .then(dataArray => {
+                    let combinedData = dataArray.join('\n');
+                    let rows = combinedData.split("\n");
+                    let table = "<table style='border: 1px solid black; border-collapse: collapse;'>";
+
+                    for (let i = 0; i < rows.length; i++) {
+                        table += "<tr>";
+                        let cells = rows[i].split(",");
+                        for (let j = 0; j < cells.length; j++) {
+                            if (i === 0) {
+                                table += "<th style='border: 1px solid black; padding: 10px; background-color: lightgray;'>" + cells[j] + "</th>";
+                            } else {
+                                table += "<td style='border: 1px solid black; padding: 10px;'>" + cells[j] + "</td>";
+                            }
                         }
+                        table += "</tr>";
                     }
-                    table += "</tr>";
-                }
-                table += "</table>";
-                document.getElementById("tableContainer").innerHTML = table;
-            })
-            .catch(error => console.error('Error fetching the CSV file:', error));
+                    table += "</table>";
+                    document.getElementById("tableContainer").innerHTML = table;
+                })
+                .catch(error => console.error('Error fetching the CSV files:', error));
         }
 
         fetchCSV();
