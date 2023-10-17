@@ -4,21 +4,16 @@
     <title>CSV Parser</title>
 </head>
 <body>
-    <input type="file" id="fileUpload" />
-    <button onclick="parseCSV()">Upload</button>
-    <br><br>
     <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
     <br><br>
     <div id="tableContainer"></div>
 
     <script>
-        function parseCSV() {
-            let file = document.getElementById("fileUpload").files[0];
-            let reader = new FileReader();
-
-            reader.onload = function (e) {
-                let contents = e.target.result;
-                let rows = contents.split("\n");
+        function fetchCSV() {
+            fetch('http://yourdomain.com/data.csv') // Replace with your network path
+            .then(response => response.text())
+            .then(data => {
+                let rows = data.split("\n");
                 let table = "<table style='border: 1px solid black; border-collapse: collapse;'>";
                 
                 for (let i = 0; i < rows.length; i++) {
@@ -35,10 +30,11 @@
                 }
                 table += "</table>";
                 document.getElementById("tableContainer").innerHTML = table;
-            };
-
-            reader.readAsText(file);
+            })
+            .catch(error => console.error('Error fetching the CSV file:', error));
         }
+
+        fetchCSV();
 
         function filterTable() {
             let input, filter, table, tr, td, i, txtValue;
