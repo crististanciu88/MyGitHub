@@ -1,90 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Combined CSV Parser</title>
-    <style>
-        table {
-            font-family: Arial, sans-serif;
-            border-collapse: collapse;
-            width: 100%;
-        }
-
-        th, td {
-            border: 1px solid #dddddd;
-            text-align: left;
-            padding: 8px;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-
-        th {
-            background-color: #4CAF50;
-            color: white;
-        }
-    </style>
+    <title>CSV Parser</title>
 </head>
 <body>
+    <input type="file" id="fileUpload" />
+    <button onclick="parseCSV()">Upload</button>
+    <br><br>
+    <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
+    <br><br>
     <div id="tableContainer"></div>
 
     <script>
-        let data1 = [];
-        let data2 = [];
-
         function parseCSV() {
-            // Simulating file upload by hardcoding file paths
-            let filePath1 = 'https://example.com/data1.csv'; // First CSV file path
-            let filePath2 = 'https://example.com/data2.csv'; // Second CSV file path
+            let file = document.getElementById("fileUpload").files[0];
+            let reader = new FileReader();
 
-            // Simulate reading file from network path
-            // In a real application, use appropriate file reading methods
-            let reader1 = {
-                result: `id,name,age\n1,John,30\n2,Jane,25\n3,Doe,40` // Simulated CSV data
+            reader.onload = function (e) {
+                let contents = e.target.result;
+                let rows = contents.split("\n");
+                let table = "<table style='border: 1px solid black; border-collapse: collapse;'>";
+                
+                for (let i = 0; i < rows.length; i++) {
+                    table += "<tr>";
+                    let cells = rows[i].split(",");
+                    for (let j = 0; j < cells.length; j++) {
+                        if (i === 0) {
+                            table += "<th style='border: 1px solid black; padding: 10px; background-color: lightgray;'>" + cells[j] + "</th>";
+                        } else {
+                            table += "<td style='border: 1px solid black; padding: 10px;'>" + cells[j] + "</td>";
+                        }
+                    }
+                    table += "</tr>";
+                }
+                table += "</table>";
+                document.getElementById("tableContainer").innerHTML = table;
             };
 
-            let reader2 = {
-                result: `id,salary,department\n1,5000,HR\n2,6000,Finance\n3,7000,Marketing` // Simulated CSV data
-            };
+            reader.readAsText(file);
+        }
 
-            let contents1 = reader1.result;
-            let rows1 = contents1.split("\n");
-            let contents2 = reader2.result;
-            let rows2 = contents2.split("\n");
+        function filterTable() {
+            let input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("filterInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementsByTagName("table")[0];
+            tr = table.getElementsByTagName("tr");
 
-            let table = "<table>";
-            for (let i = 0; i < rows1.length; i++) {
-                table += "<tr>";
-                let cells = rows1[i].split(",");
-                for (let j = 0; j < cells.length; j++) {
-                    if (i === 0) {
-                        table += "<th>" + cells[j] + "</th>";
-                    } else {
-                        table += "<td>" + cells[j] + "</td>";
+            for (i = 1; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td");
+                let found = false;
+                for (let j = 0; j < td.length; j++) {
+                    txtValue = td[j].textContent || td[j].innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        found = true;
+                        break;
                     }
                 }
-                if (i === 0) {
-                    let cells2 = rows2[0].split(",");
-                    for (let j = 1; j < cells2.length; j++) {
-                        table += "<th>" + cells2[j] + "</th>";
-                    }
+                if (found) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
                 }
-                table += "</tr>";
             }
-            for (let i = 1; i < Math.max(rows1.length, rows2.length); i++) {
-                table += "<tr>";
-                let cells1 = rows1[i] ? rows1[i].split(",") : Array(cells.length).fill('');
-                let cells2 = rows2[i] ? rows2[i].split(",") : Array(2).fill('');
-                for (let j = 0; j < cells1.length; j++) {
-                    table += "<td>" + cells1[j] + "</td>";
-                }
-                for (let j = 1; j < cells2.length; j++) {
-                    table += "<td>" + cells2[j] + "</td>";
-                }
-                table += "</tr>";
-            }
-            table += "</table>";
-            document.getElementById("tableContainer").innerHTML = table;
         }
     </script>
 </body>
