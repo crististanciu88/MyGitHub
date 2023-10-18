@@ -1,6 +1,13 @@
 Get-ChildItem -Path 'C:\Path\To\Directory' -Filter *.xml,*.config -Recurse | ForEach-Object {
     (Get-Content $_.FullName -Raw) -replace 'appdev', 'godirect' | Set-Content $_.FullName
 }
+$files = Get-ChildItem -Path 'C:\Path\To\Directory' -Filter *.xml,*.config -Recurse
+
+foreach ($file in $files) {
+    $content = [System.IO.File]::ReadAllText($file.FullName)
+    $content = $content -replace 'appdev', 'godirect'
+    [System.IO.File]::WriteAllText($file.FullName, $content)
+}
 
 
 # Get all services with the name "test" on the server
