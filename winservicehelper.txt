@@ -1,172 +1,39 @@
-$Config = [xml](Get-Content -Path "C:\Users\Admin\Desktop\test.xml")
+# Get all services with the name "test" on the server
+$services = Get-WmiObject -Class Win32_Service | Where-Object { $_.Name -like "*test*" }
 
-# Get the service parameters from the XML configuration file
-$ServiceName = $Config.SelectSingleNode('//Service/ServiceName').InnerText
-$ServiceBinaryPath = $Config.SelectSingleNode('//Service/ServiceBinaryPath').InnerText
-$StartupType = $Config.SelectSingleNode('//Service/StartupType').InnerText
-$StartService = [bool]::Parse($Config.SelectSingleNode('//Service/StartService').InnerText)
+# Initialize an array to store the final data
+$finalData = @()
 
-# Get the environment-specific configuration from the XML configuration file
-$Environment = $Config.SelectSingleNode("//Environment[@name='dev']")
-$EnvironmentServiceName = $Environment.SelectSingleNode('./ServiceName').InnerText
-$EnvironmentServiceBinaryPath = $Environment.SelectSingleNode('./ServiceBinaryPath').InnerText
+# Iterate through each service
+foreach ($service in $services) {
+    $serviceName = $service.Name
+    $status = $service.State
+    $path = $service.PathName
+    $server = $env:COMPUTERNAME
 
-<#
-<?xml version="1.0" encoding="UTF-8"?>
-<Configuration>
-    <Service>
-        <ServiceName>MyService</ServiceName>
-        <ServiceBinaryPath>C:\Path\To\MyService.exe</ServiceBinaryPath>
-        <StartupType>Automatic</StartupType>
-        <StartService>true</StartService>
-    </Service>
-    <Environment name="dev">
-        <ServiceName>MyService-Dev</ServiceName>
-        <ServiceBinaryPath>C:\Path\To\MyService-Dev.exe</ServiceBinaryPath>
-    </Environment>
-    <Environment name="uat">
-        <ServiceName>MyService-UAT</ServiceName>
-        <ServiceBinaryPath>C:\Path\To\MyService-UAT.exe</ServiceBinaryPath>
-    </Environment>
-    <Environment name="prod">
-        <ServiceName>MyService-Prod</ServiceName>
-        <ServiceBinaryPath>C:\Path\To\MyService-Prod.exe</ServiceBinaryPath>
-    </Environment>
-</Configuration>
+    # Get the PID of the service
+    $servicePID = $service.ProcessID
 
-<configurations>
-  <environment name="dev">
-    <service>
-      <name>MyService</name>
-      <display_name>My Service</display_name>
-      <description>This is my service</description>
-      <executable_path>C:\path\to\MyService.exe</executable_path>
-      <service_type>own</service_type>
-      <start_mode>manual</start_mode>
-      <start_name>svc_user</start_name>
-      <password>svc_password</password>
-      <dependencies>EventLog</dependencies>
-      <service_arguments>-arg1 value1 -arg2 value2</service_arguments>
-      <service_recovery>
-        <reset_period>PT1H</reset_period>
-        <actions>
-          <restart_service delay="PT1M"/>
-        </actions>
-      </service_recovery>
-    </service>
-  </environment>
-  <environment name="uat">
-    <service>
-      <name>MyService</name>
-      <display_name>My Service UAT</display_name>
-      <description>This is my service for UAT</description>
-      <executable_path>C:\path\to\MyServiceUAT.exe</executable_path>
-      <service_type>own</service_type>
-      <start_mode>manual</start_mode>
-      <start_name>LocalSystem</start_name>
-      <dependencies>EventLog</dependencies>
-      <service_arguments>-arg1 value1 -arg2 value2 -uat</service_arguments>
-      <service_recovery>
-        <reset_period>PT1H</reset_period>
-        <actions>
-          <restart_service delay="PT1M"/>
-        </actions>
-      </service_recovery>
-    </service>
-  </environment>
-  <environment name="prod">
-    <service>
-      <name>MyService</name>
-      <display_name>My Service Prod</display_name>
-      <description>This is my service for Prod</description>
-      <executable_path>C:\path\to\MyServiceProd.exe</executable_path>
-      <service_type>own</service_type>
-      <start_mode>manual</start_mode>
-      <start_name>svc_user</start_name>
-      <password>svc_password</password>
-      <dependencies>EventLog</dependencies>
-      <service_arguments>-arg1 value1 -arg2 value2 -prod</service_arguments>
-      <service_recovery>
-        <reset_period>PT1H</reset_period>
-        <actions>
-          <restart_service delay="PT1M"/>
-        </actions>
-      </service_recovery>
-    </service>
-  </environment>
-</configurations>
+    # Find the port using netstat
+    $netstatOutput = netstat -ano | Select-String -Pattern $servicePID
 
-
-#>
-
-function Install-MyService {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$EnvironmentName
-    )
-    
-    $config = [xml](Get-Content -Path "$PSScriptRoot\configuration.xml")
-    $environment = $config.configurations.environment | Where-Object { $_.name -eq $EnvironmentName }
-    
-    if (!$environment) {
-        throw "Environment '$EnvironmentName' not found in configuration file."
+    # Extract the port number
+    if ($netstatOutput) {
+        $port = $netstatOutput -split "\s+" | Select-Object -Index 1
+    } else {
+        $port = "Not Found"
     }
-    
-    $service = $environment.service
-    
-    $serviceName = $service.name
-    $displayName = $service.display_name
-    $description = $service.description
-    $executablePath = $service.executable_path
-    $serviceType = $service.service_type
-    $startMode = $service.start_mode
-    $startName = $service.start_name
-    $password = $service.password
-    $dependencies = $service.dependencies
-    $serviceArguments = $service.service_arguments
-    $resetPeriod = $service.service_recovery.reset_period
-    $restartDelay = $service.service_recovery.actions.restart_service.delay
-    
-    # Call the second function to install the service
-    Install-MyServiceInternal -ServiceName $serviceName -DisplayName $displayName -Description $description -ExecutablePath $executablePath -ServiceType $serviceType -StartMode $startMode -StartName $startName -Password $password -Dependencies $dependencies -ServiceArguments $serviceArguments -ResetPeriod $resetPeriod -RestartDelay $restartDelay
+
+    # Create a custom object for each service and add it to the final data array
+    $serviceData = [PSCustomObject]@{
+        Server = $server
+        Name = $serviceName
+        Status = $status
+        Path = $path
+        Port = $port
+    }
+    $finalData += $serviceData
 }
 
-function Install-MyServiceInternal {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$ServiceName,
-        [Parameter(Mandatory=$true)]
-        [string]$DisplayName,
-        [Parameter(Mandatory=$true)]
-        [string]$Description,
-        [Parameter(Mandatory=$true)]
-        [string]$ExecutablePath,
-        [Parameter(Mandatory=$true)]
-        [string]$ServiceType,
-        [Parameter(Mandatory=$true)]
-        [string]$StartMode,
-        [Parameter(Mandatory=$true)]
-        [string]$StartName,
-        [Parameter(Mandatory=$true)]
-        [string]$Password,
-        [Parameter(Mandatory=$true)]
-        [string]$Dependencies,
-        [Parameter(Mandatory=$false)]
-        [string]$ServiceArguments = "",
-        [Parameter(Mandatory=$false)]
-        [string]$ResetPeriod = "",
-        [Parameter(Mandatory=$false)]
-        [string]$RestartDelay = ""
-    )
-    
-    # Use sc.exe to create the service
-    $command = "sc.exe create $ServiceName binPath=`"$ExecutablePath`" start=$StartMode type=$ServiceType DisplayName=`"$DisplayName`""
-    if ($description) { $command += " description=`"$Description`"" }
-    if ($startName) { $command += " obj=`"$StartName`" password=`"$Password`"" }
-    if ($dependencies) { $command += " depend=`"$Dependencies`"" }
-    if ($serviceArguments) { $command += " start=$serviceArguments" }
-    if ($resetPeriod) { $command += " failure=flag reset=$resetPeriod" }
-    if ($restartDelay) { $command += " actions=restart/$restartDelay" }
-    
-    Invoke-Expression $command
-}
+# Export the final data to a CSV file
+$finalData | Export-Csv -Path "C:\path\to\output.csv" -NoTypeInformation
