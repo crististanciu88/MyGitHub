@@ -1,3 +1,8 @@
+Get-ChildItem -Path 'C:\Path\To\Directory' -Filter *.xml,*.config -Recurse | ForEach-Object {
+    (Get-Content $_.FullName -Raw) -replace 'appdev', 'godirect' | Set-Content $_.FullName
+}
+
+
 # Get all services with the name "test" on the server
 $services = Get-WmiObject -Class Win32_Service | Where-Object { $_.Name -like "*test*" }
 
