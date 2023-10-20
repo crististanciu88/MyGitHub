@@ -1,85 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Combined CSV Parser</title>
-    <style>
-        table {
-            border: 1px solid black;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid black;
-            padding: 10px;
-        }
-        th:first-child, td:first-child {
-            background-color: lightgray;
-        }
-    </style>
+  <title>Combined CSV Parser</title>
+  <style>
+    table {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 10px;
+    }
+    th:first-child, td:first-child {
+      background-color: lightgray;
+    }
+  </style>
 </head>
 <body>
-    <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
-    <br><br>
-    <div id="tableContainer"></div>
+  <input type="text" id="filterInput" onkeyup="filterTable()" placeholder="Filter...">
+  <br><br>
+  <div id="tableContainer"></div>
 
-    <script>
-        function fetchCSV() {
-            let paths = ['http://yourdomain.com/data.csv', 'http://yourdomain.com/data2.csv']; // Replace with your network paths
-            Promise.all(paths.map(path => fetch(path)))
-                .then(responses => Promise.all(responses.map(response => response.text())))
-                .then(dataArray => {
-                    let combinedData = dataArray.join('\n');
-                    let rows = combinedData.split("\n");
-                    let table = "<table>";
+  <script>
+    function fetchCSV() {
+      let paths = ['http://yourdomain.com/data.csv', 'http://yourdomain.com/data2.csv']; // Replace with your network paths
+      Promise.all(paths.map(path => fetch(path)))
+        .then(responses => Promise.all(responses.map(response => response.text())))
+        .then(dataArray => {
+          let combinedData = dataArray.join('\n');
+          let rows = combinedData.split("\n");
+          let table = "<table>";
 
-                    for (let i = 0; i < rows.length; i++) {
-                        let rowContent = rows[i].split(",");
-                        let rowHtml = "<tr>";
-                        for (let j = 0; j < rowContent.length; j++) {
-                            if (i === 0) {
-                                rowHtml += "<th>" + rowContent[j] + "</th>";
-                            } else {
-                                if (rowContent[j].includes('dww')) {
-                                    rowHtml += "<td style='background-color: yellow;'>" + rowContent[j] + "</td>";
-                                } else {
-                                    rowHtml += "<td>" + rowContent[j] + "</td>";
-                                }
-                            }
-                        }
-                        rowHtml += "</tr>";
-                        table += rowHtml;
-                    }
-                    table += "</table>";
-                    document.getElementById("tableContainer").innerHTML = table;
-                })
-                .catch(error => console.error('Error fetching the CSV files:', error));
-        }
+          for (let i = 0; i < rows.length; i++) {
+            let rowContent = rows[i].split(",");
+            let rowHtml = "<tr>";
+            for (let j = 0; j < rowContent.length; j++) {
+              if (i === 0) {
+                rowHtml += "<th>" + rowContent[j] + "</th>";
+              } else {
+                if (rowContent[j].toLowerCase().includes('dww'.toLowerCase())) {
+                  rowHtml += "<td style='background-color: yellow;'>" + rowContent[j] + "</td>";
+                } else {
+                  rowHtml += "<td>" + rowContent[j] + "</td>";
+                }
+              }
+            }
+            rowHtml += "</tr>";
+            table += rowHtml;
+          }
+          table += "</table>";
+          document.getElementById("tableContainer").innerHTML = table;
+        })
+        .catch(error => console.error('Error fetching the CSV files:', error));
+    }
 
-        fetchCSV();
+    fetchCSV();
 
-        function filterTable() {
-            let input, filter, table, tr, td, i, txtValue;
-            input = document.getElementById("filterInput");
-            filter = input.value.toUpperCase();
-            table = document.getElementsByTagName("table")[0];
-            tr = table.getElementsByTagName("tr");
+    function filterTable() {
+      let input, filter, table, tr, td, i, txtValue;
+      input = document.getElementById("filterInput");
+      filter = input.value.toUpperCase();
+      table = document.getElementsByTagName("table")[0];
+      tr = table.getElementsByTagName("tr");
 
-            for (i = 1; i < tr.length; i++) {
-                td = tr[i].getElementsByTagName("td");
-                let found = false;
-                for (let j = 0; j < td.length; j++) {
-                    txtValue = td[j].textContent || td[j].innerText;
-                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
-            }
-        }
-    </script>
+      for (i = 1; i < tr.length; i++) {
+        td = tr[i].getElementsByTagName("td");
+        let found = false;
+        for (let j = 0; j < td.length; j++) {
+          txtValue = td[j].textContent || td[j].innerText;
+          if (txtValue.toUpperCase().indexOf(filter) > -1) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          tr[i].style.display = "";
+        } else {
+          tr[i].style.display = "none";
+        }
+      }
+    }
+  </script>
 </body>
 </html>
