@@ -65,18 +65,13 @@
 
       for (i = 1; i < tr.length; i++) {
         td = tr[i].getElementsByTagName("td");
-        let found = false;
         for (let j = 0; j < td.length; j++) {
           txtValue = td[j].textContent || td[j].innerText;
           if (txtValue.toUpperCase().indexOf(filter) > -1) {
-            found = true;
-            break;
+            td[j].style.backgroundColor = 'yellow';
+          } else {
+            td[j].style.backgroundColor = '';
           }
-        }
-        if (found) {
-          tr[i].style.display = "";
-        } else {
-          tr[i].style.display = "none";
         }
       }
     }
