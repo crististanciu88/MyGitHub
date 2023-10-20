@@ -14,7 +14,7 @@
         th:first-child, td:first-child {
             background-color: lightgray;
         }
-        .highlight {
+        tr.highlight {
             background-color: yellow;
         }
     </style>
@@ -36,7 +36,7 @@
 
                     for (let i = 0; i < rows.length; i++) {
                         let rowContent = rows[i].split(",");
-                        let rowHtml = "<tr>";
+                        let rowHtml = "<tr" + (rowContent.includes('dww') ? " class='highlight'" : "") + ">";
                         for (let j = 0; j < rowContent.length; j++) {
                             if (i === 0) {
                                 rowHtml += "<th>" + rowContent[j] + "</th>";
@@ -45,7 +45,7 @@
                             }
                         }
                         rowHtml += "</tr>";
-                        table += rowContent.includes('dww') ? rowHtml.replace("<tr>", "<tr class='highlight'>") : rowHtml;
+                        table += rowHtml;
                     }
                     table += "</table>";
                     document.getElementById("tableContainer").innerHTML = table;
