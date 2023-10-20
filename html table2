@@ -6,6 +6,17 @@
         .highlight {
             background-color: yellow;
         }
+        table {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+        }
+        th:first-child, td:first-child {
+            background-color: lightgray;
+        }
     </style>
 </head>
 <body>
@@ -21,7 +32,7 @@
                 .then(dataArray => {
                     let combinedData = dataArray.join('\n');
                     let rows = combinedData.split("\n");
-                    let table = "<table style='border: 1px solid black; border-collapse: collapse;'>";
+                    let table = "<table>";
 
                     for (let i = 0; i < rows.length; i++) {
                         if (rows[i].includes('dww')) {
@@ -32,9 +43,9 @@
                         let cells = rows[i].split(",");
                         for (let j = 0; j < cells.length; j++) {
                             if (i === 0) {
-                                table += "<th style='border: 1px solid black; padding: 10px; background-color: lightgray;'>" + cells[j] + "</th>";
+                                table += "<th>" + cells[j] + "</th>";
                             } else {
-                                table += "<td style='border: 1px solid black; padding: 10px;'>" + cells[j] + "</td>";
+                                table += "<td>" + cells[j] + "</td>";
                             }
                         }
                         table += "</tr>";
