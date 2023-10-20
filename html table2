@@ -3,9 +3,6 @@
 <head>
     <title>Combined CSV Parser</title>
     <style>
-        .highlight {
-            background-color: yellow;
-        }
         table {
             border: 1px solid black;
             border-collapse: collapse;
@@ -16,6 +13,9 @@
         }
         th:first-child, td:first-child {
             background-color: lightgray;
+        }
+        .highlight {
+            background-color: yellow;
         }
     </style>
 </head>
@@ -35,20 +35,17 @@
                     let table = "<table>";
 
                     for (let i = 0; i < rows.length; i++) {
-                        if (rows[i].includes('dww')) {
-                            table += "<tr class='highlight'>";
-                        } else {
-                            table += "<tr>";
-                        }
-                        let cells = rows[i].split(",");
-                        for (let j = 0; j < cells.length; j++) {
+                        let rowContent = rows[i].split(",");
+                        let rowHtml = "<tr>";
+                        for (let j = 0; j < rowContent.length; j++) {
                             if (i === 0) {
-                                table += "<th>" + cells[j] + "</th>";
+                                rowHtml += "<th>" + rowContent[j] + "</th>";
                             } else {
-                                table += "<td>" + cells[j] + "</td>";
+                                rowHtml += "<td>" + rowContent[j] + "</td>";
                             }
                         }
-                        table += "</tr>";
+                        rowHtml += "</tr>";
+                        table += rowContent.includes('dww') ? rowHtml.replace("<tr>", "<tr class='highlight'>") : rowHtml;
                     }
                     table += "</table>";
                     document.getElementById("tableContainer").innerHTML = table;
