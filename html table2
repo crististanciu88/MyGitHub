@@ -38,7 +38,11 @@
                             if (i === 0) {
                                 rowHtml += "<th>" + rowContent[j] + "</th>";
                             } else {
-                                rowHtml += "<td>" + rowContent[j] + "</td>";
+                                if (rowContent[j].includes('dww')) {
+                                    rowHtml += "<td style='background-color: yellow;'>" + rowContent[j] + "</td>";
+                                } else {
+                                    rowHtml += "<td>" + rowContent[j] + "</td>";
+                                }
                             }
                         }
                         rowHtml += "</tr>";
@@ -46,22 +50,11 @@
                     }
                     table += "</table>";
                     document.getElementById("tableContainer").innerHTML = table;
-
-                    applyHighlight();
                 })
                 .catch(error => console.error('Error fetching the CSV files:', error));
         }
 
         fetchCSV();
-
-        function applyHighlight() {
-            let rows = document.querySelectorAll('tr');
-            rows.forEach(row => {
-                if (row.innerHTML.includes('dww')) {
-                    row.style.backgroundColor = 'yellow';
-                }
-            });
-        }
 
         function filterTable() {
             let input, filter, table, tr, td, i, txtValue;
