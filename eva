@@ -1,30 +1,24 @@
-# Replace these values with your actual Vault URL and paths to certificate and private key files
-$vaultUrl = "https://your-vault-url/v1/secret/data/your-secret-path"
-$certFilePath = "C:\path\to\your\certificate.cert"
-$pemFilePath = "C:\path\to\your\private-key.pem"
+# Define the source folder and files to be copied
+$sourceFolder = "\\network\folder\libs"
+$libsToCopy = @("lib1.dll", "lib2.dll", "lib3.dll")
 
-# Load the certificate and private key into variables
-$cert = Get-Content $certFilePath -Raw
-$pem = Get-Content $pemFilePath -Raw
+# Define the destination folder on the servers
+$destinationFolder = "C:\Destination\Folder"
 
-# Create a secure string for the private key
-$securePem = ConvertTo-SecureString $pem -AsPlainText -Force
+# Define the list of servers
+$servers = @("Server1", "Server2", "Server3") # Add more server names as needed
 
-# Create a PSCredential object with the certificate and private key
-$credentials = New-Object System.Management.Automation.PSCredential("user", $securePem)
+# Define the service name to be restarted
+$serviceName = "YourServiceName"
 
-# Set up the SSL options using the certificate
-$sslOptions = New-Object System.Net.Security.SslStreamOptions
-$sslOptions.RemoteCertificateValidationCallback = { $true }
+# Loop through each server
+foreach ($server in $servers) {
+    # Copy each lib to the destination folder on the server
+    foreach ($lib in $libsToCopy) {
+        Copy-Item -Path "$sourceFolder\$lib" -Destination "\\$server\$destinationFolder" -Force
+    }
 
-# Create a session with the appropriate SSL options and credentials
-$session = New-PSSession -ComputerName $vaultUrl -CertificateThumbprint $cert -Credential $credentials -UseSSL -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck)
-
-# Make an API call to extract the secret from Vault
-$response = Invoke-RestMethod -Uri $vaultUrl -Method Get -WebSession $session
-
-# Extract the secret data from the response
-$secretData = $response.data
-
-# Display the secret data
-$secretData
+    # Restart the service
+    Write-Host "Restarting $serviceName on $server..."
+    Restart-Service -Name $serviceName -ComputerName $server -Force
+}
