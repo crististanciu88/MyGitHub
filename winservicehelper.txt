@@ -52,3 +52,34 @@ if ($environmentNode) {
 } else {
     Write-Host "Environment '$environment' not found in the XML."
 }
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<Config>
+    <Environment name="dev">
+	  <Instance name="Instance1">
+        <ServicePath>C:\MyService\bin\dev1\MyService.exe</ServicePath>
+        <ServiceName>MyService_DEV</ServiceName>
+        <StartupType>Automatic</StartupType>
+        <StartService>True</StartService>
+        <UserName>svc_user</UserName>
+        <Password>svc_password</Password>
+	  </Instance>
+	  <Instance name="Instance2">
+        <ServicePath>C:\MyService\bin\dev2\MyService.exe</ServicePath>
+        <ServiceName>MyService_DEV</ServiceName>
+        <StartupType>Automatic</StartupType>
+        <StartService>True</StartService>
+        <UserName>svc_user</UserName>
+        <Password>svc_password</Password>
+	  </Instance>
+    </Environment>
+    <Environment name="prod">
+        <ServicePath>C:\MyService\bin\prod\MyService.exe</ServicePath>
+        <ServiceName>MyService_PROD</ServiceName>
+        <StartupType>Automatic</StartupType>
+        <StartService>True</StartService>
+        <UserName>svc_user</UserName>
+        <Password>svc_password</Password>
+    </Environment>
+</Config>
