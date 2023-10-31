@@ -1,51 +1,54 @@
-Get-ChildItem -Path 'C:\Path\To\Directory' -Filter *.xml,*.config -Recurse | ForEach-Object {
-    (Get-Content $_.FullName -Raw) -replace 'appdev', 'godirect' | Set-Content $_.FullName
-}
-$files = Get-ChildItem -Path 'C:\Path\To\Directory' -Filter *.xml,*.config -Recurse
+# Load the XML file
+$xmlPath = "C:\Users\Admin\Desktop\test.xml"
+$xml = [xml](Get-Content $xmlPath)
 
-foreach ($file in $files) {
-    $content = [System.IO.File]::ReadAllText($file.FullName)
-    $content = $content -replace 'appdev', 'godirect'
-    [System.IO.File]::WriteAllText($file.FullName, $content)
-}
+# Define the environment and instance you want to configure
+$environment = 'prod'
+$instance = 'DEFAULT'
 
+# Find the environment node for the specified environment
+$environmentNode = $xml.Config.Environment | Where-Object { $_.name -eq $environment }
 
-# Get all services with the name "test" on the server
-$services = Get-WmiObject -Class Win32_Service | Where-Object { $_.Name -like "*test*" }
-
-# Initialize an array to store the final data
-$finalData = @()
-
-# Iterate through each service
-foreach ($service in $services) {
-    $serviceName = $service.Name
-    $status = $service.State
-    $path = $service.PathName
-    $server = $env:COMPUTERNAME
-
-    # Get the PID of the service
-    $servicePID = $service.ProcessID
-
-    # Find the port using netstat
-    $netstatOutput = netstat -ano | Select-String -Pattern $servicePID
-
-    # Extract the port number
-    if ($netstatOutput) {
-        $port = $netstatOutput -split "\s+" | Select-Object -Index 1
+if ($environmentNode) {
+    if ($instance) {
+        # Check if the specified instance is present in the environment node
+        $instanceNode = $environmentNode.Instance | Where-Object { $_.name -eq $instance }
+        if ($instanceNode) {
+            # Extract configuration values for the specified instance
+            $servicePath = $instanceNode.ServicePath
+            $serviceName = $instanceNode.ServiceName
+            $startupType = $instanceNode.StartupType
+            $startService = $instanceNode.StartService
+            $userName = $instanceNode.UserName
+            $password = $instanceNode.Password
+        } else {
+            Write-Host "Instance '$instance' not found in the environment '$environment'. Using default environment configuration."
+            # Extract configuration values for the specified environment
+            $servicePath = $environmentNode.ServicePath
+            $serviceName = $environmentNode.ServiceName
+            $startupType = $environmentNode.StartupType
+            $startService = $environmentNode.StartService
+            $userName = $environmentNode.UserName
+            $password = $environmentNode.Password
+        }
     } else {
-        $port = "Not Found"
+        # Extract configuration values for the specified environment
+        $servicePath = $environmentNode.ServicePath
+        $serviceName = $environmentNode.ServiceName
+        $startupType = $environmentNode.StartupType
+        $startService = $environmentNode.StartService
+        $userName = $environmentNode.UserName
+        $password = $environmentNode.Password
     }
 
-    # Create a custom object for each service and add it to the final data array
-    $serviceData = [PSCustomObject]@{
-        Server = $server
-        Name = $serviceName
-        Status = $status
-        Path = $path
-        Port = $port
-    }
-    $finalData += $serviceData
+    # Output the variables for verification
+    Write-Host "ServicePath: $servicePath"
+    Write-Host "ServiceName: $serviceName"
+    Write-Host "StartupType: $startupType"
+    Write-Host "StartService: $startService"
+    Write-Host "UserName: $userName"
+    # You may not want to display the password in clear text
+    # Write-Host "Password: $password"
+} else {
+    Write-Host "Environment '$environment' not found in the XML."
 }
-
-# Export the final data to a CSV file
-$finalData | Export-Csv -Path "C:\path\to\output.csv" -NoTypeInformation
