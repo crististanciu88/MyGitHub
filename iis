@@ -86,3 +86,29 @@ You are correct; I apologize for the oversight. MSDeploy does not automatically 
    Replace `"Site2"` with the name of the target site on Server 2 where you want to move the application.
 
 This updated process ensures that both the application and its associated application pool are correctly moved from Server 1 to Server 2. Be sure to adjust the site and application names, as well as the application pool name, according to your specific configuration.
+
+Export the Web Application from Server 1:
+
+plaintext
+Copy code
+msdeploy -verb:sync -source:appHostConfig="Site1/WebAppName" -dest:package=c:\WebAppPackage.zip
+Replace "Site1" with the name of the site on Server 1 and "WebAppName" with the name of the web application.
+
+Export the Application Pool Configuration from Server 1:
+
+plaintext
+Copy code
+msdeploy -verb:sync -source:appPoolConfig="AppPoolName" -dest:package=c:\AppPoolPackage.zip
+Replace "AppPoolName" with the name of the application pool associated with the web application.
+
+Import the Application Pool Configuration to Server 2:
+
+plaintext
+Copy code
+msdeploy -verb:sync -source:package=c:\AppPoolPackage.zip -dest:appPoolConfig="AppPoolName" -enableLink:AppPoolExtension
+Import the Web Application to Server 2 Under a Different Site:
+
+plaintext
+Copy code
+msdeploy -verb:sync -source:package=c:\WebAppPackage.zip -dest:appHostConfig="Site2" -enableLink:AppPoolExtension
+Replace "Site2" with the name of the site on Server 2 where you want to host the web application.
