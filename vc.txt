@@ -1,38 +1,37 @@
-$servers = @("Server1", "Server2", "Server3") # Replace with your array of server names
+# Define the source folder and files to be copied
+$sourceFolder = "\\network\folder\libs"
+$libsToCopy = @("lib1.dll", "lib2.dll", "lib3.dll")
 
-$output = foreach ($server in $servers) {
-    Write-Host "Checking VC++ Redistributable versions on $server..."
-    $scriptBlock = {
-        try {
-            $versions = Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like "Microsoft Visual C++ Redistributable*"} | Select-Object -Property Name, Version
+# Define the destination folder on the servers
+$destinationFolder = "C:\Destination\Folder"
 
-            if ($versions) {
-                foreach ($version in $versions) {
-                    [PSCustomObject]@{
-                        Server = $env:COMPUTERNAME
-                        Name = $version.Name
-                        Version = $version.Version
-                    }
-                }
-            }
-            else {
-                [PSCustomObject]@{
-                    Server = $env:COMPUTERNAME
-                    Name = "No VC++ Redistributable versions found"
-                    Version = ""
-                }
-            }
-        }
-        catch {
-            [PSCustomObject]@{
-                Server = $env:COMPUTERNAME
-                Name = "Error checking VC++ Redistributable versions"
-                Version = $_.Exception.Message
-            }
-        }
+# Define the list of servers
+$servers = @("Server1", "Server2", "Server3") # Add more server names as needed
+
+# Define the service name to be restarted
+$servicePrefix = "mcollective"
+
+# Loop through each server
+foreach ($server in $servers) {
+    # Stop the service
+    $serviceName = Get-Service -ComputerName $server | Where-Object { $_.DisplayName -like "$servicePrefix*" }
+    
+    if ($serviceName -ne $null) {
+        Write-Host "Stopping $serviceName on $server..."
+        Invoke-Command -ComputerName $server -ScriptBlock { Stop-Service -Name $using:serviceName -Force } -Credential (Get-Credential)
+        
+        # Wait for the service to stop
+        Start-Sleep -Seconds 5
     }
 
-    Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock
-}
+    # Copy each lib to the destination folder on the server
+    foreach ($lib in $libsToCopy) {
+        Copy-Item -Path "$sourceFolder\$lib" -Destination "\\$server\$destinationFolder" -Force
+    }
 
-$output | Format-Table -AutoSize
+    # Start the service back
+    if ($serviceName -ne $null) {
+        Write-Host "Starting $serviceName on $server..."
+        Invoke-Command -ComputerName $server -ScriptBlock { Start-Service -Name $using:serviceName } -Credential (Get-Credential)
+    }
+}
