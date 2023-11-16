@@ -1,34 +1,60 @@
-$oidUrl = "http://oid.test.com:4032/api/users/{userId}"  # Replace with the actual OID URL
-$userId = "123456"  # Replace with the user ID you want to query
+function DisableProtectedView {
+    param (
+        [string]$server
+    )
 
-# Set the credentials for the service account
-$username = "service_account_username"
-$password = "service_account_password"
+    $scriptBlock = {
+        $officeRegistryPath = "HKCU:\Software\Microsoft\Office\{0}\Common\General"
+        $officeVersions = @("16.0", "15.0", "14.0")
 
-# Create a WebClient object to send the HTTP request
-$webClient = New-Object System.Net.WebClient
+        foreach ($version in $officeVersions) {
+            $officePath = $officeRegistryPath -f $version
 
-# Set the credentials for the service account
-$webClient.Credentials = New-Object System.Net.NetworkCredential($username, $password)
+            # Create or update the registry key
+            New-Item -Path $officePath -Force | Out-Null
 
-try {
-    # Construct the full URL by replacing the placeholder {userId} with the actual user ID
-    $url = $oidUrl -replace "{userId}", $userId
+            # Set the registry values to disable Protected View
+            Set-ItemProperty -Path $officePath -Name "DisableHardwareAcceleration" -Value 1
+            Set-ItemProperty -Path $officePath -Name "TrustedDocuments" -Value 1
+            Set-ItemProperty -Path $officePath -Name "Security" -Value 1
+        }
 
-    # Send the HTTP request and retrieve the response
-    $response = $webClient.DownloadString($url)
+        Write-Host "Protected View disabled for Microsoft Office applications."
+    }
 
-    # Process the response
-    # Replace the following lines with your own logic to parse and handle the response
-    Write-Host "Response received:"
-    Write-Host $response
+    Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock
 }
-catch {
-    # Handle any errors that occurred during the request
-    Write-Host "Error occurred during the request:"
-    Write-Host $_.Exception.Message
+
+function GetProtectedView {
+    param (
+        [string]$server
+    )
+
+    $scriptBlock = {
+        $officeRegistryPath = "HKCU:\Software\Microsoft\Office\{0}\Common\General"
+        $officeVersions = @("16.0", "15.0", "14.0")
+
+        $protectedViewSettings = @()
+
+        foreach ($version in $officeVersions) {
+            $officePath = $officeRegistryPath -f $version
+
+            $settings = @{
+                Version = $version
+                DisableHardwareAcceleration = (Get-ItemProperty -Path $officePath -Name "DisableHardwareAcceleration").DisableHardwareAcceleration
+                TrustedDocuments = (Get-ItemProperty -Path $officePath -Name "TrustedDocuments").TrustedDocuments
+                Security = (Get-ItemProperty -Path $officePath -Name "Security").Security
+            }
+
+            $protectedViewSettings += New-Object PSObject -Property $settings
+        }
+
+        $protectedViewSettings
+    }
+
+    Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock
 }
-finally {
-    # Clean up the WebClient object
-    $webClient.Dispose()
-}
+
+# Example usage:
+# DisableProtectedView -server "RemoteServerName"
+# GetProtectedView -server "RemoteServerName"
