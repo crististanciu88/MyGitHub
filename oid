@@ -31,25 +31,31 @@ function GetProtectedView {
     )
 
     $scriptBlock = {
-        $officeRegistryPath = "HKCU:\Software\Microsoft\Office\{0}\Common\General"
-        $officeVersions = @("16.0", "15.0", "14.0")
+        $hkcuPath = "HKCU:\"
+        $subkeys = Get-Item -LiteralPath $hkcuPath | Get-ItemProperty | Select-Object -ExpandProperty PSChildName
 
-        $protectedViewSettings = @()
+        $registrySettings = @()
 
-        foreach ($version in $officeVersions) {
-            $officePath = $officeRegistryPath -f $version
+        foreach ($subkey in $subkeys) {
+            $registryPath = "$hkcuPath$subkey\Software\Microsoft\Office\{0}\Common\General"
+            $officeVersions = @("16.0", "15.0", "14.0")
 
-            $settings = @{
-                Version = $version
-                DisableHardwareAcceleration = (Get-ItemProperty -Path $officePath -Name "DisableHardwareAcceleration").DisableHardwareAcceleration
-                TrustedDocuments = (Get-ItemProperty -Path $officePath -Name "TrustedDocuments").TrustedDocuments
-                Security = (Get-ItemProperty -Path $officePath -Name "Security").Security
+            foreach ($version in $officeVersions) {
+                $officePath = $registryPath -f $version
+
+                $settings = @{
+                    User = $subkey
+                    Version = $version
+                    DisableHardwareAcceleration = (Get-ItemProperty -Path $officePath -Name "DisableHardwareAcceleration" -ErrorAction SilentlyContinue)?.DisableHardwareAcceleration
+                    TrustedDocuments = (Get-ItemProperty -Path $officePath -Name "TrustedDocuments" -ErrorAction SilentlyContinue)?.TrustedDocuments
+                    Security = (Get-ItemProperty -Path $officePath -Name "Security" -ErrorAction SilentlyContinue)?.Security
+                }
+
+                $registrySettings += New-Object PSObject -Property $settings
             }
-
-            $protectedViewSettings += New-Object PSObject -Property $settings
         }
 
-        $protectedViewSettings
+        $registrySettings
     }
 
     Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock
