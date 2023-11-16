@@ -63,4 +63,4 @@ function GetProtectedView {
 
 # Example usage:
 # DisableProtectedView -server "RemoteServerName"
-# GetProtectedView -server "RemoteServerName"
+# GetProtectedView -server "RemoteServerName"222
