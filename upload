@@ -41,3 +41,30 @@ deploy_job:
   variables:
     FILE_NAME: "your-file.zip"
     NEXUS_URL: "https://your-nexus-repo.com/repository/maven-releases/"
+
+
+# upload-template.yml
+
+stages:
+  - upload
+
+upload_to_nexus:
+  stage: upload
+  script:
+    - echo '<project><modelVersion>4.0.0</modelVersion><groupId>com.example</groupId><artifactId>my-artifact</artifactId><version>1.0.0</version><packaging>zip</packaging></project>' > pom.xml
+    - echo '<settings></settings>' > settings.xml
+    - mvn deploy:deploy-file
+      -DgroupId=com.example
+      -DartifactId=my-artifact
+      -Dversion=1.0.0
+      -Dpackaging=zip
+      -Dfile=$FILE_NAME
+      -Durl=$NEXUS_URL
+      -DrepositoryId=nexus-repo-id
+      -DpomFile=pom.xml
+      -s settings.xml
+  only:
+    variables:
+      - $FILE_NAME
+      - $NEXUS_URL
+
