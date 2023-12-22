@@ -1,0 +1,43 @@
+# upload-template.yml
+
+stages:
+  - upload
+
+upload_to_nexus:
+  stage: upload
+  script:
+    - mvn deploy:deploy-file
+      -DgroupId=com.example
+      -DartifactId=my-artifact
+      -Dversion=1.0.0
+      -Dpackaging=zip
+      -Dfile=$FILE_NAME  # Variable for the file name
+      -Durl=$NEXUS_URL    # Variable for the Nexus URL
+      -DrepositoryId=nexus-repo-id  # Replace with your Nexus repository ID
+  only:
+    variables:
+      - $FILE_NAME
+      - $NEXUS_URL
+
+# .gitlab-ci.yml
+
+include:
+  - project: 'your-group/your-project'
+    file: 'path/to/upload-template.yml'
+
+stages:
+  - build
+  - deploy
+
+build_job:
+  stage: build
+  script:
+    - echo "Building..."
+
+deploy_job:
+  stage: deploy
+  extends:
+    - .upload_to_nexus  # Include the upload template
+  variables:
+    FILE_NAME: "your-file.zip"
+    NEXUS_URL: "https://your-nexus-repo.com/repository/maven-releases/"
