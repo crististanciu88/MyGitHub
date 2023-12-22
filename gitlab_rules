@@ -11,3 +11,24 @@ rules:
       - '**/*'
 
   - if: '$CI_COMMIT_BRANCH != "master" && $CI_COMMIT_TAG == "" && $CI_COMMIT_SCHEDULE == "" && $FortifyForceRun == "true" && $CI_MERGE_REQUEST_EVENT_TYPE != "detached" && $StandAlone_Flag == "true" && $CI_COMMIT_REF_PROTECTED == "true"'
+
+
+
+rules:
+  - changes:
+      - '**/*'
+    exists:
+      - $CI_COMMIT_BRANCH
+      - $CI_COMMIT_TAG
+      - $CI_COMMIT_SCHEDULE
+      - $CI_MERGE_REQUEST_EVENT_TYPE
+      - $FortifyForceRun
+      - $StandAlone_Flag
+      - $CI_COMMIT_REF_PROTECTED
+
+  - exists:
+      - $CI_COMMIT_BRANCH
+    changes:
+      - '**/*'
+    if: '$CI_COMMIT_BRANCH != "master" && $CI_COMMIT_TAG == "" && $CI_COMMIT_SCHEDULE == "" && $FortifyForceRun == "true" && $CI_MERGE_REQUEST_EVENT_TYPE != "detached" && $StandAlone_Flag == "true" && $CI_COMMIT_REF_PROTECTED == "true"'
+
