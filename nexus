@@ -1,0 +1,32 @@
+# Replace these with your actual values
+$repoUrl = "https://your-nexus-repo.com/repository/releases/"
+$filePath = "C:\Path\To\Your\artifact-v123.zip"
+
+# Read the contents of the ZIP file
+$fileBytes = [System.IO.File]::ReadAllBytes($filePath)
+
+# Base64 encode the ZIP file content
+$fileBase64 = [Convert]::ToBase64String($fileBytes)
+
+# Form the JSON payload for Nexus
+$jsonPayload = @{
+    "raw" = $true
+    "base64" = $fileBase64
+    "filename" = "artifact-v123.zip"
+}
+
+# Convert the payload to JSON
+$jsonPayloadString = $jsonPayload | ConvertTo-Json
+
+# Upload the ZIP file to Nexus
+$response = Invoke-RestMethod -Uri "$repoUrl/artifact-v123.zip" -Method Put -Headers @{
+    "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("your-username:your-password"))
+    "Content-Type" = "application/json"
+} -Body $jsonPayloadString
+
+# Check the response
+if ($response.success -eq $true) {
+    Write-Host "Upload successful."
+} else {
+    Write-Host "Upload failed. Error: $($response.errors)"
+}
