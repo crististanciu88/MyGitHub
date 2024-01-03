@@ -1,0 +1,10 @@
+$zipFilePath = "C:\Path\To\Your\Folder\fflib-15.2.0.19780.zip"
+$pattern = 'fflib-(\d+\.\d+\.\d+\.\d+)\.zip'
+
+if ($zipFilePath -match $pattern) {
+    $version = $matches[1]
+    Write-Host "Found version: $version"
+    # Use $version as needed
+} else {
+    Write-Host "Version not found in the file name."
+}
