@@ -10,6 +10,10 @@ function ConvertTo-XmlElement($xmlDoc, $parent, $property, $value) {
         foreach ($childProperty in $value.PSObject.Properties) {
             ConvertTo-XmlElement $xmlDoc $node $childProperty.Name $childProperty.Value
         }
+    } elseif ($value -is [System.Array]) {
+        foreach ($item in $value) {
+            ConvertTo-XmlElement $xmlDoc $node "Item" $item
+        }
     } else {
         $node.InnerText = $value
     }
