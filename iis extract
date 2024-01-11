@@ -1,0 +1,45 @@
+param (
+    [string]$appPoolName,
+    [string]$outputXmlPath
+)
+
+# Create an XML document
+$xmlDoc = New-Object System.Xml.XmlDocument
+
+# Create the root element
+$rootNode = $xmlDoc.CreateElement("AppPoolSettings")
+$xmlDoc.AppendChild($rootNode)
+
+# Get the application pool settings
+$appPool = Get-Item "IIS:\AppPools\$appPoolName"
+$appPoolSettings = $appPool | Select-Object *
+
+# Create an element for the application pool settings
+$appPoolNode = $xmlDoc.CreateElement("AppPool")
+$xmlDoc.SelectSingleNode("//AppPoolSettings").AppendChild($appPoolNode)
+
+# Add application pool settings to the XML
+foreach ($setting in $appPoolSettings.PSObject.Properties) {
+    $settingNode = $xmlDoc.CreateElement($setting.Name)
+    $settingNode.InnerText = $setting.Value
+    $appPoolNode.AppendChild($settingNode)
+}
+
+# Get the sites using the application pool
+$sites = Get-WebApplication | Where-Object { $_.ApplicationPool -eq $appPoolName }
+
+# Create an element for each site
+foreach ($site in $sites) {
+    $siteNode = $xmlDoc.CreateElement("Site")
+    $xmlDoc.SelectSingleNode("//AppPoolSettings").AppendChild($siteNode)
+
+    # Add site information to the XML
+    $siteNode.SetAttribute("Name", $site.Name)
+    $siteNode.SetAttribute("PhysicalPath", $site.PhysicalPath)
+    $siteNode.SetAttribute("Bindings", ($site.Bindings | Out-String).Trim())
+}
+
+# Save the XML to the specified location
+$xmlDoc.Save($outputXmlPath)
+
+Write-Host "AppPool settings exported to: $outputXmlPath"
