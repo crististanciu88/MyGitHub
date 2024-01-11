@@ -1,0 +1,43 @@
+# Import IISAdministration module
+Import-Module IISAdministration
+
+# Specify the app pool name to export
+$appPoolName = "MyAppPool"
+
+# Create an empty XML string to hold the configuration
+$xmlString = ""
+
+# Get the app pool settings
+$appPoolSettings = Get-IISAppPool $appPoolName
+
+# Iterate through the app pool settings
+foreach ($setting in $appPoolSettings) {
+    # Determine the XML element name based on the setting's type
+    $elementName = $setting.GetType().Name
+
+    # Generate the XML element tag
+    $elementTag = "<$elementName>"
+
+    # If the setting has nested settings, recursively export them
+    if ($setting.GetType().IsArray) {
+        foreach ($nestedSetting in $setting) {
+            $nestedXml = ExportAppPoolSettingsToXml($nestedSetting)
+            $elementTag += $nestedXml
+        }
+    } else {
+        # Add the setting's value to the XML element tag
+        $elementTag += $setting
+    }
+
+    # Close the XML element tag
+    $elementTag += "</$elementName>"
+
+    # Append the XML element tag to the XML string
+    $xmlString += $elementTag
+}
+
+# Write the XML string to the specified file
+$fileName = "AppPoolSettings.xml"
+$xmlFile = New-Object System.IO.StreamWriter($fileName)
+$xmlFile.WriteLine($xmlString)
+$xmlFile.Close()
