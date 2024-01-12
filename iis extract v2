@@ -1,6 +1,6 @@
 param (
     [string]$appPoolName,
-    [string]$outputXmlPath
+    [string]$outputJsonPath
 )
 
 # Get the application pool settings
@@ -17,7 +17,10 @@ $selectedProperties = @{
     'AutoStart' = $appPoolSettings.AutoStart
 }
 
-# Export the selected properties to a Clixml file
-$selectedProperties | Export-Clixml -Path $outputXmlPath
+# Convert selected properties to JSON format
+$jsonOutput = $selectedProperties | ConvertTo-Json
 
-Write-Host "AppPool settings exported to: $outputXmlPath"
+# Export the JSON to a file
+$jsonOutput | Out-File -FilePath $outputJsonPath -Encoding UTF8
+
+Write-Host "AppPool settings exported to: $outputJsonPath"
