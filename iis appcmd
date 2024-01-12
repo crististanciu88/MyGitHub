@@ -19,7 +19,7 @@ function ExportIISAppPool {
         $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
 
         # Skip lines without a value
-        if ($value) {
+        if ($value.Trim() -ne "") {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
             $xmlRoot.AppendChild($xmlProperty)
@@ -37,32 +37,24 @@ function ExportIISAppPool {
 
 function ExportIISSite {
     param (
-        [string]$appPoolName,
+        [string]$websiteName,
         [string]$outputXmlPath
     )
 
-    # Get all sites associated with the specified app pool
-    $sites = Get-WebApplication | Where-Object { $_.ApplicationPool -eq $appPoolName } | Select-Object -ExpandProperty Sites -Unique
+    # Get the specified website
+    $siteInfo = Get-WebSite $websiteName
 
     # Create an XML document
     $xmlDoc = New-Object System.Xml.XmlDocument
-    $xmlRoot = $xmlDoc.CreateElement('IISSites')
+    $xmlRoot = $xmlDoc.CreateElement('IISSiteSettings')
     $xmlDoc.AppendChild($xmlRoot)
 
-    # Export settings for each site
-    foreach ($site in $sites) {
-        $siteInfo = Get-WebSite $site
-        $siteNode = $xmlDoc.CreateElement('Site')
-        $siteNode.SetAttribute('Name', $siteInfo.Name)
-        $xmlRoot.AppendChild($siteNode)
-
-        # Add site settings to the XML
-        $siteSettings = $siteInfo.PSObject.Properties
-        foreach ($setting in $siteSettings) {
-            $settingNode = $xmlDoc.CreateElement($setting.Name)
-            $settingNode.InnerText = $setting.Value
-            $siteNode.AppendChild($settingNode)
-        }
+    # Add site settings to the XML
+    $siteSettings = $siteInfo.PSObject.Properties
+    foreach ($setting in $siteSettings) {
+        $settingNode = $xmlDoc.CreateElement($setting.Name)
+        $settingNode.InnerText = $setting.Value
+        $xmlRoot.AppendChild($settingNode)
     }
 
     # Save the XML to the specified location
@@ -73,4 +65,4 @@ function ExportIISSite {
 
 # Example usage:
 # ExportIISAppPool -appPoolName "YourAppPoolName" -outputXmlPath "D:\test\AppPoolSettings.xml"
-# ExportIISSite -appPoolName "YourAppPoolName" -outputXmlPath "D:\test\SiteSettings.xml"
+# ExportIISSite -websiteName "YourWebsiteName" -outputXmlPath "D:\test\SiteSettings.xml"
