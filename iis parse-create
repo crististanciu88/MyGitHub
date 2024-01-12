@@ -47,7 +47,9 @@ function CreateOrUpdateIISSite {
     param (
         [string]$siteName,
         [string]$sitePhysicalPath,
-        [string]$appPoolName
+        [string]$appPoolName,
+        [string]$certificateThumbprint = $null,
+        [int]$sslPort = 443
     )
 
     # Check if the Site exists
@@ -57,10 +59,30 @@ function CreateOrUpdateIISSite {
         # Update the existing Site
         Set-ItemProperty "IIS:\Sites\$siteName" -Name "PhysicalPath" -Value $sitePhysicalPath
         Set-ItemProperty "IIS:\Sites\$siteName" -Name "ApplicationPool" -Value $appPoolName
+
+        # Update SSL bindings if certificate details are provided
+        if ($certificateThumbprint) {
+            $binding = Get-WebBinding -Port $sslPort -Name $siteName
+            if ($binding) {
+                $binding | Set-WebBinding -PropertyName "CertificateHash" -Value $certificateThumbprint
+                Write-Host "SSL certificate updated for Site '$siteName'."
+            } else {
+                New-WebBinding -Name $siteName -Port $sslPort -Protocol "https" -SslFlags 1 -Thumbprint $certificateThumbprint
+                Write-Host "SSL binding added for Site '$siteName'."
+            }
+        }
+
         Write-Host "Site '$siteName' updated."
     } else {
         # Create a new Site
         New-WebSite -Name $siteName -PhysicalPath $sitePhysicalPath -ApplicationPool $appPoolName -Force
+
+        # Add SSL binding if certificate details are provided
+        if ($certificateThumbprint) {
+            New-WebBinding -Name $siteName -Port $sslPort -Protocol "https" -SslFlags 1 -Thumbprint $certificateThumbprint
+            Write-Host "SSL binding added for Site '$siteName'."
+        }
+
         Write-Host "Site '$siteName' created."
     }
 }
@@ -68,9 +90,16 @@ function CreateOrUpdateIISSite {
 # Example usage:
 # Replace with your actual values
 $appPoolName = "YourAppPoolName"
-$appPoolFrameworkVersion = "v4.0"
 $siteName = "YourSiteName"
 $sitePhysicalPath = "C:\YourSitePath"
+$certificateThumbprint = "YourCertificateThumbprint"  # Replace with the actual thumbprint of your SSL certificate
+
+# Create or update the Site with SSL binding
+CreateOrUpdateIISSite -siteName $siteName -sitePhysicalPath $sitePhysicalPath -appPoolName $appPoolName -certificateThumbprint $certificateThumbprint
+
+
+# Example usage:
+# Replace with your actual values
 
 # Create or update the App Pool
 CreateOrUpdateIISAppPool -appPoolName $appPoolName -appPoolFrameworkVersion $appPoolFrameworkVersion
