@@ -5,12 +5,12 @@ function ExportIISAppPool {
     )
 
     # Run appcmd to export the application pool settings to a text file
-    $appCmdOutputPath = "D:\test\$appPoolName.xml"
+    $appCmdOutputPath = "C:\$appPoolName.xml"
     & C:\Windows\System32\inetsrv\appcmd.exe list apppool "$appPoolName" /text:* > $appCmdOutputPath
 
     # Read the appcmd output and create an XML document
     $xmlDoc = New-Object System.Xml.XmlDocument
-    $xmlRoot = $xmlDoc.CreateElement('AppPoolSettings')
+    $xmlRoot = $xmlDoc.CreateElement('IISConfigurations')
     $xmlDoc.AppendChild($xmlRoot)
 
     # Read each line from the appcmd output and create XML elements
@@ -18,8 +18,8 @@ function ExportIISAppPool {
         $property, $value = $_ -split ":", 2
         $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
 
-        # Skip lines without a value
-        if ($value.Trim() -ne "") {
+        # Skip lines without a value or with empty quotes
+        if ($value.Trim() -ne "" -and $value.Trim() -ne '""') {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
             $xmlRoot.AppendChild($xmlProperty)
@@ -42,12 +42,12 @@ function ExportIISSite {
     )
 
     # Run appcmd to export the site settings to a text file
-    $appCmdOutputPath = "D:\test\$websiteName.xml"
+    $appCmdOutputPath = "C:\$websiteName.xml"
     & C:\Windows\System32\inetsrv\appcmd.exe list site "$websiteName" /text:* > $appCmdOutputPath
 
     # Read the appcmd output and create an XML document
     $xmlDoc = New-Object System.Xml.XmlDocument
-    $xmlRoot = $xmlDoc.CreateElement('IISSiteSettings')
+    $xmlRoot = $xmlDoc.CreateElement('IISConfigurations')
     $xmlDoc.AppendChild($xmlRoot)
 
     # Read each line from the appcmd output and create XML elements
@@ -55,8 +55,8 @@ function ExportIISSite {
         $property, $value = $_ -split ":", 2
         $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
 
-        # Skip lines without a value
-        if ($value.Trim() -ne "") {
+        # Skip lines without a value or with empty quotes
+        if ($value.Trim() -ne "" -and $value.Trim() -ne '""') {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
             $xmlRoot.AppendChild($xmlProperty)
@@ -73,5 +73,5 @@ function ExportIISSite {
 }
 
 # Example usage:
-# ExportIISAppPool -appPoolName "YourAppPoolName" -outputXmlPath "D:\test\AppPoolSettings.xml"
-# ExportIISSite -websiteName "YourWebsiteName" -outputXmlPath "D:\test\SiteSettings.xml"
+# ExportIISAppPool -appPoolName "YourAppPoolName" -outputXmlPath "C:\IISConfigurations.xml"
+# ExportIISSite -websiteName "YourWebsiteName" -outputXmlPath "C:\IISConfigurations.xml"
