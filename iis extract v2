@@ -15,7 +15,11 @@ function ConvertTo-XmlElement($xmlDoc, $parent, $property, $value) {
             ConvertTo-XmlElement $xmlDoc $node "Item" $item
         }
     } else {
-        $node.InnerText = $value
+        if ($value -is [int]) {
+            $node.InnerText = $value.ToString()
+        } else {
+            $node.InnerText = $value
+        }
     }
 
     $parent.AppendChild($node)
@@ -34,11 +38,33 @@ $appPoolSettings = $appPool | Get-ItemProperty
 
 # Create an element for the application pool settings
 $appPoolNode = $xmlDoc.CreateElement("AppPool")
-$xmlDoc.SelectSingleNode("//AppPoolSettings").AppendChild($appPoolNode)
+$appPoolNode.SetAttribute("Name", $appPoolName)
+$rootNode.AppendChild($appPoolNode)
 
 # Add application pool settings to the XML
 foreach ($setting in $appPoolSettings.PSObject.Properties) {
-    ConvertTo-XmlElement $xmlDoc $appPoolNode $setting.Name $setting.Value
+    if ($setting.Value -is [System.Management.Automation.PSCustomObject]) {
+        $node = $xmlDoc.CreateElement($setting.Name)
+        $appPoolNode.AppendChild($node)
+
+        foreach ($childProperty in $setting.Value.PSObject.Properties) {
+            ConvertTo-XmlElement $xmlDoc $node $childProperty.Name $childProperty.Value
+        }
+    } elseif ($setting.Value -is [System.Array]) {
+        $arrayNode = $xmlDoc.CreateElement($setting.Name)
+        $appPoolNode.AppendChild($arrayNode)
+
+        foreach ($item in $setting.Value) {
+            $node = $xmlDoc.CreateElement("Item")
+            ConvertTo-XmlElement $xmlDoc $node "Value" $item
+            $arrayNode.AppendChild($node)
+        }
+    } else {
+        $node = $xmlDoc.CreateElement($setting.Name)
+        $node.SetAttribute("Name", $setting.Name)
+        $appPoolNode.AppendChild($node)
+        $node.InnerText = $setting.Value
+    }
 }
 
 # Save the XML to the specified location
