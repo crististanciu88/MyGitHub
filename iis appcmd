@@ -1,0 +1,10 @@
+param (
+    [string]$appPoolName,
+    [string]$outputXmlPath
+)
+
+# Run appcmd to export the application pool settings to an XML file
+& C:\Windows\System32\inetsrv\appcmd.exe list apppool "$appPoolName" /text:*
+   | Out-File -FilePath $outputXmlPath
+
+Write-Host "AppPool settings exported to: $outputXmlPath"
