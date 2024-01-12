@@ -18,6 +18,10 @@ function ExportIISAppPool {
         $xmlDoc.AppendChild($xmlRoot)
     }
 
+    # Create an element for the app pool
+    $appPoolElement = $xmlDoc.CreateElement('AppPool')
+    $xmlDoc.DocumentElement.AppendChild($appPoolElement)
+
     # Read each line from the appcmd output and create XML elements
     Get-Content -Path $appCmdOutputPath | ForEach-Object {
         $property, $value = $_ -split ":", 2
@@ -27,7 +31,7 @@ function ExportIISAppPool {
         if ($value.Trim() -ne "" -and $value.Trim() -ne '""') {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
-            $xmlDoc.DocumentElement.AppendChild($xmlProperty)
+            $appPoolElement.AppendChild($xmlProperty)
         }
     }
 
@@ -60,6 +64,10 @@ function ExportIISSite {
         $xmlDoc.AppendChild($xmlRoot)
     }
 
+    # Create an element for the site
+    $siteElement = $xmlDoc.CreateElement('Site')
+    $xmlDoc.DocumentElement.AppendChild($siteElement)
+
     # Read each line from the appcmd output and create XML elements
     Get-Content -Path $appCmdOutputPath | ForEach-Object {
         $property, $value = $_ -split ":", 2
@@ -69,7 +77,7 @@ function ExportIISSite {
         if ($value.Trim() -ne "" -and $value.Trim() -ne '""') {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
-            $xmlDoc.DocumentElement.AppendChild($xmlProperty)
+            $siteElement.AppendChild($xmlProperty)
         }
     }
 
