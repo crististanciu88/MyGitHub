@@ -1,6 +1,6 @@
 param (
     [string]$appPoolName,
-    [string]$outputJsonPath
+    [string]$outputXmlPath
 )
 
 # Get the application pool settings
@@ -17,10 +17,19 @@ $selectedProperties = @{
     'AutoStart' = $appPoolSettings.AutoStart
 }
 
-# Convert selected properties to JSON format
-$jsonOutput = $selectedProperties | ConvertTo-Json
+# Create a custom XML document
+$xmlDoc = New-Object System.Xml.XmlDocument
+$xmlRoot = $xmlDoc.CreateElement('AppPoolSettings')
+$xmlDoc.AppendChild($xmlRoot)
 
-# Export the JSON to a file
-$jsonOutput | Out-File -FilePath $outputJsonPath -Encoding UTF8
+# Add selected properties to the XML
+foreach ($property in $selectedProperties.Keys) {
+    $xmlProperty = $xmlDoc.CreateElement($property)
+    $xmlProperty.InnerText = $selectedProperties[$property]
+    $xmlRoot.AppendChild($xmlProperty)
+}
 
-Write-Host "AppPool settings exported to: $outputJsonPath"
+# Save the XML to the specified location
+$xmlDoc.Save($outputXmlPath)
+
+Write-Host "AppPool settings exported to: $outputXmlPath"
