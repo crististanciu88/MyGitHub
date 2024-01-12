@@ -9,7 +9,7 @@ $appPoolSettings = $appPool | Get-ItemProperty
 
 # Create a custom object to store the settings
 $appPoolObject = [PSCustomObject]@{
-    Name = $appPoolName
+    AppPoolName = $appPoolName
 }
 
 # Add application pool settings to the custom object
