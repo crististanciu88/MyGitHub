@@ -41,7 +41,20 @@ $rootNode.AppendChild($appPoolNode)
 
 # Add application pool settings to the XML
 foreach ($setting in $appPoolSettings.PSObject.Properties) {
-    ConvertTo-XmlElement $xmlDoc $appPoolNode $setting.Name $setting.Value
+    $settingNode = $xmlDoc.CreateElement($setting.Name)
+    $appPoolNode.AppendChild($settingNode)
+
+    if ($setting.Value -is [System.Array]) {
+        foreach ($item in $setting.Value) {
+            ConvertTo-XmlElement $xmlDoc $settingNode "Item" $item
+        }
+    } elseif ($setting.Value -is [System.Management.Automation.PSCustomObject]) {
+        foreach ($childProperty in $setting.Value.PSObject.Properties) {
+            ConvertTo-XmlElement $xmlDoc $settingNode $childProperty.Name $childProperty.Value
+        }
+    } else {
+        $settingNode.InnerText = $setting.Value.ToString()
+    }
 }
 
 # Save the XML to the specified location
