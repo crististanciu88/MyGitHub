@@ -9,9 +9,14 @@ function ExportIISAppPool {
     & C:\Windows\System32\inetsrv\appcmd.exe list apppool "$appPoolName" /text:* > $appCmdOutputPath
 
     # Read the appcmd output and create an XML document
-    $xmlDoc = New-Object System.Xml.XmlDocument
-    $xmlRoot = $xmlDoc.CreateElement('IISConfigurations')
-    $xmlDoc.AppendChild($xmlRoot)
+    $xmlDoc = [System.Xml.XmlDocument]::new()
+
+    if (Test-Path $outputXmlPath) {
+        $xmlDoc.Load($outputXmlPath)
+    } else {
+        $xmlRoot = $xmlDoc.CreateElement('IISConfigurations')
+        $xmlDoc.AppendChild($xmlRoot)
+    }
 
     # Read each line from the appcmd output and create XML elements
     Get-Content -Path $appCmdOutputPath | ForEach-Object {
@@ -22,7 +27,7 @@ function ExportIISAppPool {
         if ($value.Trim() -ne "" -and $value.Trim() -ne '""') {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
-            $xmlRoot.AppendChild($xmlProperty)
+            $xmlDoc.DocumentElement.AppendChild($xmlProperty)
         }
     }
 
@@ -46,9 +51,14 @@ function ExportIISSite {
     & C:\Windows\System32\inetsrv\appcmd.exe list site "$websiteName" /text:* > $appCmdOutputPath
 
     # Read the appcmd output and create an XML document
-    $xmlDoc = New-Object System.Xml.XmlDocument
-    $xmlRoot = $xmlDoc.CreateElement('IISConfigurations')
-    $xmlDoc.AppendChild($xmlRoot)
+    $xmlDoc = [System.Xml.XmlDocument]::new()
+
+    if (Test-Path $outputXmlPath) {
+        $xmlDoc.Load($outputXmlPath)
+    } else {
+        $xmlRoot = $xmlDoc.CreateElement('IISConfigurations')
+        $xmlDoc.AppendChild($xmlRoot)
+    }
 
     # Read each line from the appcmd output and create XML elements
     Get-Content -Path $appCmdOutputPath | ForEach-Object {
@@ -59,7 +69,7 @@ function ExportIISSite {
         if ($value.Trim() -ne "" -and $value.Trim() -ne '""') {
             $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
             $xmlProperty.InnerText = $value.Trim()
-            $xmlRoot.AppendChild($xmlProperty)
+            $xmlDoc.DocumentElement.AppendChild($xmlProperty)
         }
     }
 
