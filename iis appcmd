@@ -15,7 +15,8 @@ $xmlDoc.AppendChild($xmlRoot)
 # Read each line from the appcmd output and create XML elements
 Get-Content -Path $appCmdOutputPath | ForEach-Object {
     $property, $value = $_ -split ":", 2
-    $xmlProperty = $xmlDoc.CreateElement($property.Trim())
+    $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
+    $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
     $xmlProperty.InnerText = $value.Trim()
     $xmlRoot.AppendChild($xmlProperty)
 }
