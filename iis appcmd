@@ -1,34 +1,76 @@
-param (
-    [string]$appPoolName,
-    [string]$outputXmlPath
-)
+function ExportIISAppPool {
+    param (
+        [string]$appPoolName,
+        [string]$outputXmlPath
+    )
 
-# Run appcmd to export the application pool settings to a text file
-$appCmdOutputPath = "D:\test\$appPoolName.xml"
-& C:\Windows\System32\inetsrv\appcmd.exe list apppool "$appPoolName" /text:* > $appCmdOutputPath
+    # Run appcmd to export the application pool settings to a text file
+    $appCmdOutputPath = "D:\test\$appPoolName.xml"
+    & C:\Windows\System32\inetsrv\appcmd.exe list apppool "$appPoolName" /text:* > $appCmdOutputPath
 
-# Read the appcmd output and create an XML document
-$xmlDoc = New-Object System.Xml.XmlDocument
-$xmlRoot = $xmlDoc.CreateElement('AppPoolSettings')
-$xmlDoc.AppendChild($xmlRoot)
+    # Read the appcmd output and create an XML document
+    $xmlDoc = New-Object System.Xml.XmlDocument
+    $xmlRoot = $xmlDoc.CreateElement('AppPoolSettings')
+    $xmlDoc.AppendChild($xmlRoot)
 
-# Read each line from the appcmd output and create XML elements
-Get-Content -Path $appCmdOutputPath | ForEach-Object {
-    $property, $value = $_ -split ":", 2
-    $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
+    # Read each line from the appcmd output and create XML elements
+    Get-Content -Path $appCmdOutputPath | ForEach-Object {
+        $property, $value = $_ -split ":", 2
+        $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
 
-    # Skip lines without a value
-    if ($value) {
-        $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
-        $xmlProperty.InnerText = $value.Trim()
-        $xmlRoot.AppendChild($xmlProperty)
+        # Skip lines without a value
+        if ($value) {
+            $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
+            $xmlProperty.InnerText = $value.Trim()
+            $xmlRoot.AppendChild($xmlProperty)
+        }
     }
+
+    # Save the XML to the specified location
+    $xmlDoc.Save($outputXmlPath)
+
+    # Remove the temporary appcmd output file
+    Remove-Item -Path $appCmdOutputPath -Force
+
+    Write-Host "AppPool settings exported to: $outputXmlPath"
 }
 
-# Save the XML to the specified location
-$xmlDoc.Save($outputXmlPath)
+function ExportIISSite {
+    param (
+        [string]$appPoolName,
+        [string]$outputXmlPath
+    )
 
-# Remove the temporary appcmd output file
-Remove-Item -Path $appCmdOutputPath -Force
+    # Get all sites associated with the specified app pool
+    $sites = Get-WebApplication | Where-Object { $_.ApplicationPool -eq $appPoolName } | Select-Object -ExpandProperty Sites -Unique
 
-Write-Host "AppPool settings exported to: $outputXmlPath"
+    # Create an XML document
+    $xmlDoc = New-Object System.Xml.XmlDocument
+    $xmlRoot = $xmlDoc.CreateElement('IISSites')
+    $xmlDoc.AppendChild($xmlRoot)
+
+    # Export settings for each site
+    foreach ($site in $sites) {
+        $siteInfo = Get-WebSite $site
+        $siteNode = $xmlDoc.CreateElement('Site')
+        $siteNode.SetAttribute('Name', $siteInfo.Name)
+        $xmlRoot.AppendChild($siteNode)
+
+        # Add site settings to the XML
+        $siteSettings = $siteInfo.PSObject.Properties
+        foreach ($setting in $siteSettings) {
+            $settingNode = $xmlDoc.CreateElement($setting.Name)
+            $settingNode.InnerText = $setting.Value
+            $siteNode.AppendChild($settingNode)
+        }
+    }
+
+    # Save the XML to the specified location
+    $xmlDoc.Save($outputXmlPath)
+
+    Write-Host "Site settings exported to: $outputXmlPath"
+}
+
+# Example usage:
+# ExportIISAppPool -appPoolName "YourAppPoolName" -outputXmlPath "D:\test\AppPoolSettings.xml"
+# ExportIISSite -appPoolName "YourAppPoolName" -outputXmlPath "D:\test\SiteSettings.xml"
