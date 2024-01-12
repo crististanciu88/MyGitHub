@@ -1,0 +1,79 @@
+function ImportIISConfigurations {
+    param (
+        [string]$xmlFilePath
+    )
+
+    # Load the XML file
+    $xmlDoc = [System.Xml.XmlDocument]::new()
+    $xmlDoc.Load($xmlFilePath)
+
+    # Parse specific attributes from the XML
+    $appPoolName = $xmlDoc.SelectSingleNode('//AppPool/Name').InnerText
+    $appPoolFrameworkVersion = $xmlDoc.SelectSingleNode('//AppPool/FrameworkVersion').InnerText
+    $siteName = $xmlDoc.SelectSingleNode('//Site/Name').InnerText
+    $sitePhysicalPath = $xmlDoc.SelectSingleNode('//Site/PhysicalPath').InnerText
+
+    # Return the parsed attributes
+    return @{
+        AppPoolName = $appPoolName
+        AppPoolFrameworkVersion = $appPoolFrameworkVersion
+        SiteName = $siteName
+        SitePhysicalPath = $sitePhysicalPath
+    }
+}
+
+function CreateOrUpdateIISAppPool {
+    param (
+        [string]$appPoolName,
+        [string]$appPoolFrameworkVersion
+    )
+
+    # Check if the App Pool exists
+    $existingAppPool = Get-WebAppPool -Name $appPoolName -ErrorAction SilentlyContinue
+
+    if ($existingAppPool) {
+        # Update the existing App Pool
+        Set-ItemProperty "IIS:\AppPools\$appPoolName" -Name "managedRuntimeVersion" -Value $appPoolFrameworkVersion
+        Write-Host "App Pool '$appPoolName' updated."
+    } else {
+        # Create a new App Pool
+        New-WebAppPool -Name $appPoolName -Force
+        Set-ItemProperty "IIS:\AppPools\$appPoolName" -Name "managedRuntimeVersion" -Value $appPoolFrameworkVersion
+        Write-Host "App Pool '$appPoolName' created."
+    }
+}
+
+function CreateOrUpdateIISSite {
+    param (
+        [string]$siteName,
+        [string]$sitePhysicalPath,
+        [string]$appPoolName
+    )
+
+    # Check if the Site exists
+    $existingSite = Get-Website -Name $siteName -ErrorAction SilentlyContinue
+
+    if ($existingSite) {
+        # Update the existing Site
+        Set-ItemProperty "IIS:\Sites\$siteName" -Name "PhysicalPath" -Value $sitePhysicalPath
+        Set-ItemProperty "IIS:\Sites\$siteName" -Name "ApplicationPool" -Value $appPoolName
+        Write-Host "Site '$siteName' updated."
+    } else {
+        # Create a new Site
+        New-WebSite -Name $siteName -PhysicalPath $sitePhysicalPath -ApplicationPool $appPoolName -Force
+        Write-Host "Site '$siteName' created."
+    }
+}
+
+# Example usage:
+# Replace with your actual values
+$appPoolName = "YourAppPoolName"
+$appPoolFrameworkVersion = "v4.0"
+$siteName = "YourSiteName"
+$sitePhysicalPath = "C:\YourSitePath"
+
+# Create or update the App Pool
+CreateOrUpdateIISAppPool -appPoolName $appPoolName -appPoolFrameworkVersion $appPoolFrameworkVersion
+
+# Create or update the Site
+CreateOrUpdateIISSite -siteName $siteName -sitePhysicalPath $sitePhysicalPath -appPoolName $appPoolName
