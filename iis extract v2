@@ -16,6 +16,14 @@ function ConvertTo-XmlElement($xmlDoc, $parent, $property, $value) {
             ConvertTo-XmlElement $xmlDoc $itemNode "Value" $item
             $node.AppendChild($itemNode)
         }
+    } elseif ($value -is [Microsoft.IIs.PowerShell.Framework.ConfigurationMethodCollection]) {
+        # Handle ConfigurationMethodCollection separately
+        foreach ($method in $value) {
+            $methodNode = $xmlDoc.CreateElement("Method")
+            ConvertTo-XmlElement $xmlDoc $methodNode "MethodName" $method.MethodName
+            ConvertTo-XmlElement $xmlDoc $methodNode "Parameters" $method.Parameters
+            $node.AppendChild($methodNode)
+        }
     } else {
         $node.InnerText = $value.ToString()
     }
@@ -53,7 +61,7 @@ foreach ($setting in $appPoolSettings.PSObject.Properties) {
             ConvertTo-XmlElement $xmlDoc $settingNode $childProperty.Name $childProperty.Value
         }
     } else {
-        $settingNode.InnerText = $setting.Value.ToString()
+        ConvertTo-XmlElement $xmlDoc $settingNode $setting.Name $setting.Value
     }
 }
 
