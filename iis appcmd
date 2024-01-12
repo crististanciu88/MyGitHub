@@ -17,8 +17,8 @@ Get-Content -Path $appCmdOutputPath | ForEach-Object {
     $property, $value = $_ -split ":", 2
     $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
 
-    # Skip empty elements
-    if (-not [string]::IsNullOrWhiteSpace($value.Trim())) {
+    # Skip lines without a value
+    if ($value) {
         $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
         $xmlProperty.InnerText = $value.Trim()
         $xmlRoot.AppendChild($xmlProperty)
