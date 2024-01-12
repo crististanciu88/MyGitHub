@@ -1,6 +1,10 @@
-$appPoolName "RiskService"
-$appCmdOutputPath = "D:test\RiskService.xml"
+param (
+    [string]$appPoolName,
+    [string]$outputXmlPath
+)
 
+# Run appcmd to export the application pool settings to a text file
+$appCmdOutputPath = "D:\test\$appPoolName.xml"
 & C:\Windows\System32\inetsrv\appcmd.exe list apppool "$appPoolName" /text:* > $appCmdOutputPath
 
 # Read the appcmd output and create an XML document
@@ -12,9 +16,13 @@ $xmlDoc.AppendChild($xmlRoot)
 Get-Content -Path $appCmdOutputPath | ForEach-Object {
     $property, $value = $_ -split ":", 2
     $sanitizedProperty = $property -replace '[^\w\d_]', ''  # Remove invalid characters
-    $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
-    $xmlProperty.InnerText = $value.Trim()
-    $xmlRoot.AppendChild($xmlProperty)
+
+    # Skip empty elements
+    if (-not [string]::IsNullOrWhiteSpace($value.Trim())) {
+        $xmlProperty = $xmlDoc.CreateElement($sanitizedProperty)
+        $xmlProperty.InnerText = $value.Trim()
+        $xmlRoot.AppendChild($xmlProperty)
+    }
 }
 
 # Save the XML to the specified location
