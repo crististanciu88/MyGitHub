@@ -3,69 +3,21 @@ param (
     [string]$outputXmlPath
 )
 
-function ConvertTo-XmlElement($xmlDoc, $parent, $property, $value) {
-    $node = $xmlDoc.CreateElement($property)
-
-    if ($value -is [System.Management.Automation.PSCustomObject]) {
-        foreach ($childProperty in $value.PSObject.Properties) {
-            ConvertTo-XmlElement $xmlDoc $node $childProperty.Name $childProperty.Value
-        }
-    } elseif ($value -is [System.Array]) {
-        foreach ($item in $value) {
-            $itemNode = $xmlDoc.CreateElement("Item")
-            ConvertTo-XmlElement $xmlDoc $itemNode "Value" $item
-            $node.AppendChild($itemNode)
-        }
-    } elseif ($value -is [Microsoft.IIs.PowerShell.Framework.ConfigurationMethodCollection]) {
-        # Handle ConfigurationMethodCollection separately
-        foreach ($method in $value) {
-            $methodNode = $xmlDoc.CreateElement("Method")
-            ConvertTo-XmlElement $xmlDoc $methodNode "MethodName" $method.MethodName
-            ConvertTo-XmlElement $xmlDoc $methodNode "Parameters" $method.Parameters
-            $node.AppendChild($methodNode)
-        }
-    } else {
-        $node.InnerText = $value.ToString()
-    }
-
-    $parent.AppendChild($node)
-}
-
-# Create an XML document
-$xmlDoc = New-Object System.Xml.XmlDocument
-
-# Create the root element
-$rootNode = $xmlDoc.CreateElement("AppPoolSettings")
-$xmlDoc.AppendChild($rootNode)
-
 # Get the application pool settings
 $appPool = Get-Item "IIS:\AppPools\$appPoolName"
 $appPoolSettings = $appPool | Get-ItemProperty
 
-# Create an element for the application pool settings
-$appPoolNode = $xmlDoc.CreateElement("AppPool")
-$appPoolNode.SetAttribute("Name", $appPoolName)
-$rootNode.AppendChild($appPoolNode)
-
-# Add application pool settings to the XML
-foreach ($setting in $appPoolSettings.PSObject.Properties) {
-    $settingNode = $xmlDoc.CreateElement($setting.Name)
-    $appPoolNode.AppendChild($settingNode)
-
-    if ($setting.Value -is [System.Array]) {
-        foreach ($item in $setting.Value) {
-            ConvertTo-XmlElement $xmlDoc $settingNode "Item" $item
-        }
-    } elseif ($setting.Value -is [System.Management.Automation.PSCustomObject]) {
-        foreach ($childProperty in $setting.Value.PSObject.Properties) {
-            ConvertTo-XmlElement $xmlDoc $settingNode $childProperty.Name $childProperty.Value
-        }
-    } else {
-        ConvertTo-XmlElement $xmlDoc $settingNode $setting.Name $setting.Value
-    }
+# Create a custom object to store the settings
+$appPoolObject = [PSCustomObject]@{
+    Name = $appPoolName
 }
 
-# Save the XML to the specified location
-$xmlDoc.Save($outputXmlPath)
+# Add application pool settings to the custom object
+foreach ($setting in $appPoolSettings.PSObject.Properties) {
+    $appPoolObject | Add-Member -MemberType NoteProperty -Name $setting.Name -Value $setting.Value
+}
+
+# Export the custom object to a Clixml file
+$appPoolObject | Export-Clixml -Path $outputXmlPath
 
 Write-Host "AppPool settings exported to: $outputXmlPath"
