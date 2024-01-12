@@ -32,7 +32,7 @@ function ExportIISAppPool {
     # Remove the temporary appcmd output file
     Remove-Item -Path $appCmdOutputPath -Force
 
-    Write-Host "AppPool settings exported to: $outputXmlPath"
+    Write-Host "AppPool settings appended to: $outputXmlPath"
 }
 
 function ExportIISSite {
@@ -69,7 +69,7 @@ function ExportIISSite {
     # Remove the temporary appcmd output file
     Remove-Item -Path $appCmdOutputPath -Force
 
-    Write-Host "Site settings exported to: $outputXmlPath"
+    Write-Host "Site settings appended to: $outputXmlPath"
 }
 
 # Example usage:
