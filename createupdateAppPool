@@ -19,45 +19,53 @@ function CreateOrUpdateIISAppPool {
         [bool]$RapidFailProtection
     )
 
-    # Check if the App Pool exists
-    $existingAppPool = Get-WebAppPool -Name $Name -ErrorAction SilentlyContinue
+    # Check if the App Pool exists using appcmd
+    $appPoolExists = & appcmd list apppool /name:$Name
 
-    if ($existingAppPool) {
-        # Update the existing App Pool
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ManagedPipelineMode" -Value $PipelineMode
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ManagedRuntimeVersion" -Value $RuntimeVersion
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "QueueLength" -Value $QueueLength
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "AutoStart" -Value $AutoStart
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "Enable32BitAppOnWin64" -Value $Enable32BitApponWin64
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.IdentityType" -Value $IdentityType
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.UserName" -Value $UserName
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.Password" -Value $Password
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.IdleTimeout" -Value $IdleTimeout
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "Failure.RapidFailProtection" -Value $RapidFailProtection
+    if ($Name) {
+        $updateCommands = @()
 
-        # Other properties can be updated similarly
+        if ($PipelineMode) {
+            $updateCommands += "/managedPipelineMode:$PipelineMode"
+        }
 
-        Write-Host "App Pool '$Name' updated."
+        if ($RuntimeVersion) {
+            $updateCommands += "/managedRuntimeVersion:$RuntimeVersion"
+        }
+
+        if ($QueueLength -ne $null) {
+            $updateCommands += "/queueLength:$QueueLength"
+        }
+
+        # Add conditions for other parameters...
+
+        if ($IdleTimeout) {
+            $updateCommands += "/processModel.idleTimeout:$IdleTimeout"
+        }
+
+        if ($RapidFailProtection -ne $null) {
+            $updateCommands += "/failure.rapidFailProtection:$RapidFailProtection"
+        }
+
+        # Check if any updates are needed
+        if ($updateCommands.Count -gt 0) {
+            $appcmdArgs = @("set apppool /apppool.name:$Name", $updateCommands)
+            & appcmd $appcmdArgs
+
+            Write-Host "App Pool '$Name' updated using appcmd."
+        } elseif ($appPoolExists -contains "APPPOOL NAME") {
+            Write-Host "App Pool '$Name' already exists and is up-to-date."
+        } else {
+            # Create a new App Pool using appcmd
+            & appcmd add apppool /name:$Name $updateCommands
+
+            Write-Host "App Pool '$Name' created using appcmd."
+        }
     } else {
-        # Create a new App Pool
-        New-WebAppPool -Name $Name -Force
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ManagedPipelineMode" -Value $PipelineMode
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ManagedRuntimeVersion" -Value $RuntimeVersion
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "QueueLength" -Value $QueueLength
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "AutoStart" -Value $AutoStart
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "Enable32BitAppOnWin64" -Value $Enable32BitApponWin64
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.IdentityType" -Value $IdentityType
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.UserName" -Value $UserName
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.Password" -Value $Password
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "ProcessModel.IdleTimeout" -Value $IdleTimeout
-        Set-ItemProperty "IIS:\AppPools\$Name" -Name "Failure.RapidFailProtection" -Value $RapidFailProtection
-
-        # Other properties can be set similarly
-
-        Write-Host "App Pool '$Name' created."
+        Write-Host "App Pool name is required. App Pool not created or updated."
     }
 }
 
 # Example usage:
 # Replace with your actual values
-CreateOrUpdateIISAppPool -Name "YourAppPoolName" -PipelineMode "Integrated" -RuntimeVersion "v4.0" -QueueLength 1000 -AutoStart $true -Enable32BitApponWin64 $false -IdentityType "ApplicationPoolIdentity" -IdleTimeout "00:30:00" -RapidFailProtection $true
+CreateOrUpdateIISAppPool -Name "YourAppPoolName" -PipelineMode "Integrated" -RuntimeVersion "v4.0" -QueueLength 1000 -IdleTimeout "00:30:00" -RapidFailProtection $true
