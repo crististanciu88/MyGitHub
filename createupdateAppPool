@@ -112,3 +112,26 @@ if ($RapidFailProtection -ne $null) {
     $updateCommands += "/failure.rapidFailProtection:$RapidFailProtection"
 }
 
+if ($PingResponseTime -ne $null) {
+    $updateCommands += "/processModel.pingResponseTime:$PingResponseTime"
+}
+
+if ($DisallowOverlappingRotation -ne $null) {
+    $updateCommands += "/recycling.disallowOverlappingRotation:$DisallowOverlappingRotation"
+}
+
+if ($DisallowRotationOnConfigChange -ne $null) {
+    $updateCommands += "/recycling.disallowRotationOnConfigChange:$DisallowRotationOnConfigChange"
+}
+
+if ($LogEventOnRecycle -ne $null) {
+    $updateCommands += "/recycling.logEventOnRecycle:$LogEventOnRecycle"
+}
+
+if ($Memory -ne $null) {
+    $updateCommands += "/recycling.periodicRestart.memory:$Memory"
+}
+
+if ($PrivateMemory -ne $null) {
+    $updateCommands += "/recycling.periodicRestart.privateMemory:$PrivateMemory"
+}
