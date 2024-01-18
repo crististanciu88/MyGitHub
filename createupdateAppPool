@@ -69,3 +69,46 @@ function CreateOrUpdateIISAppPool {
 # Example usage:
 # Replace with your actual values
 CreateOrUpdateIISAppPool -Name "YourAppPoolName" -PipelineMode "Integrated" -RuntimeVersion "v4.0" -QueueLength 1000 -IdleTimeout "00:30:00" -RapidFailProtection $true
+
+$updateCommands = @()
+
+if ($PipelineMode) {
+    $updateCommands += "/managedPipelineMode:$PipelineMode"
+}
+
+if ($RuntimeVersion) {
+    $updateCommands += "/managedRuntimeVersion:$RuntimeVersion"
+}
+
+if ($QueueLength -ne $null) {
+    $updateCommands += "/queueLength:$QueueLength"
+}
+
+if ($AutoStart -ne $null) {
+    $updateCommands += "/autoStart:$AutoStart"
+}
+
+if ($Enable32BitApponWin64 -ne $null) {
+    $updateCommands += "/enable32BitAppOnWin64:$Enable32BitApponWin64"
+}
+
+if ($IdentityType) {
+    $updateCommands += "/processModel.identityType:$IdentityType"
+}
+
+if ($UserName) {
+    $updateCommands += "/processModel.userName:$UserName"
+}
+
+if ($Password) {
+    $updateCommands += "/processModel.password:$Password"
+}
+
+if ($IdleTimeout) {
+    $updateCommands += "/processModel.idleTimeout:$IdleTimeout"
+}
+
+if ($RapidFailProtection -ne $null) {
+    $updateCommands += "/failure.rapidFailProtection:$RapidFailProtection"
+}
+
