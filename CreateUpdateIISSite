@@ -1,0 +1,35 @@
+function CreateOrUpdateIISSite {
+    param (
+        [string]$SiteName,
+        [string]$PhysicalPath,
+        [string]$BindingInformation,
+        [string]$AppPoolName
+    )
+
+    # Check if the site exists using appcmd
+    $siteExists = & appcmd list site /name:$SiteName
+
+    if ($SiteName -and $PhysicalPath -and $BindingInformation -and $AppPoolName) {
+        $updateCommands = @("/site.name:$SiteName", "/bindings:$BindingInformation", "/physicalPath:$PhysicalPath", "/applicationDefaults.applicationPool:$AppPoolName")
+
+        # Check if any updates are needed
+        if ($siteExists -contains "SITE NAME") {
+            $appcmdArgs = @("set site", $updateCommands)
+            & appcmd $appcmdArgs
+
+            Write-Host "Site '$SiteName' updated using appcmd."
+        } else {
+            # Create a new site using appcmd
+            $appcmdArgs = @("add site", $updateCommands)
+            & appcmd $appcmdArgs
+
+            Write-Host "Site '$SiteName' created using appcmd."
+        }
+    } else {
+        Write-Host "Some required parameters are missing. Site not created or updated."
+    }
+}
+
+# Example usage:
+# Replace with your actual values
+CreateOrUpdateIISSite -SiteName "YourSiteName" -PhysicalPath "C:\Your\Physical\Path" -BindingInformation "*:80:" -AppPoolName "YourAppPoolName"
