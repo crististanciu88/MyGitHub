@@ -135,3 +135,49 @@ if ($Memory -ne $null) {
 if ($PrivateMemory -ne $null) {
     $updateCommands += "/recycling.periodicRestart.privateMemory:$PrivateMemory"
 }
+function CreateOrUpdate-IISAppPools {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$RootName,
+        [Parameter(Mandatory=$true)]
+        [string]$Name,
+        [string]$PipelineMode = "Integrated",
+        [string]$RuntimeVersion = "v4.0",
+        [int]$QueueLength = 1000,
+        [bool]$AutoStart = $true,
+        [bool]$Enable32BitApponWin64 = $false,
+        [string]$IdentityType = "ApplicationPoolIdentity",
+        [string]$UserName,
+        [string]$Password,
+        [string]$IdleTimeout = "00:20:00",
+        [int]$PingResponseTime = 90,
+        [bool]$DisallowOverlappingRotation = $true,
+        [bool]$DisallowRotationOnConfigChange = $true,
+        [bool]$LogEventOnRecycle = $true,
+        [bool]$RapidFailProtection = $true
+    )
+
+    if ($RootName) {
+        $rootAppPool = Get-ChildItem -Path IIS:\AppPools | Where-Object { $_.Name -eq $RootName } -ErrorAction SilentlyContinue
+
+        if ($rootAppPool) {
+            Write-Host "Updating IIS application pool '$RootName'..."
+            & appcmd set apppool /apppool.name:$RootName /managedPipelineMode:$PipelineMode /managedRuntimeVersion:$RuntimeVersion /queueLength:$QueueLength /autoStart:$AutoStart /enable32BitAppOnWin64:$Enable32BitApponWin64 /processModel.identityType:$IdentityType /processModel.userName:$UserName /processModel.password:$Password /processModel.idleTimeout:$IdleTimeout /failure.rapidFailProtection:$RapidFailProtection /failure.disallowOverlappingRotation:$DisallowOverlappingRotation /failure.disallowRotationOnConfigChange:$DisallowRotationOnConfigChange /recycling.logEventOnRecycle:$LogEventOnRecycle
+        }
+        else {
+            Write-Host "Creating IIS application pool '$RootName'..."
+            & appcmd add apppool /name:$RootName /managedPipelineMode:$PipelineMode /managedRuntimeVersion:$RuntimeVersion /queueLength:$QueueLength /autoStart:$AutoStart /enable32BitAppOnWin64:$Enable32BitApponWin64 /processModel.identityType:$IdentityType /processModel.userName:$UserName /processModel.password:$Password /processModel.idleTimeout:$IdleTimeout /failure.rapidFailProtection:$RapidFailProtection /failure.disallowOverlappingRotation:$DisallowOverlappingRotation /failure.disallowRotationOnConfigChange:$DisallowRotationOnConfigChange /recycling.logEventOnRecycle:$LogEventOnRecycle
+        }
+    }
+
+    $appPool = Get-ChildItem -Path IIS:\AppPools | Where-Object { $_.Name -eq $Name } -ErrorAction SilentlyContinue
+
+    if ($appPool) {
+        Write-Host "Updating IIS application pool '$Name'..."
+        & appcmd set apppool /apppool.name:$Name /managedPipelineMode:$PipelineMode /managedRuntimeVersion:$RuntimeVersion /queueLength:$QueueLength /autoStart:$AutoStart /enable32BitAppOnWin64:$Enable32BitApponWin64 /processModel.identityType:$IdentityType /processModel.userName:$UserName /processModel.password:$Password /processModel.idleTimeout:$IdleTimeout /failure.rapidFailProtection:$RapidFailProtection /failure.disallowOverlappingRotation:$DisallowOverlappingRotation /failure.disallowRotationOnConfigChange:$DisallowRotationOnConfigChange /recycling.logEventOnRecycle:$LogEventOnRecycle
+    }
+    else {
+        Write-Host "Creating IIS application pool '$Name'..."
+        & appcmd add apppool /name:$Name /managedPipelineMode:$PipelineMode /managedRuntimeVersion:$RuntimeVersion /queueLength:$QueueLength /autoStart:$AutoStart /enable32BitAppOnWin64:$Enable32BitApponWin64 /processModel.identityType:$IdentityType /processModel.userName:$UserName /processModel.password:$Password /processModel.idleTimeout:$IdleTimeout /failure.rapidFailProtection:$RapidFailProtection /failure.disallowOverlappingRotation:$DisallowOverlappingRotation /failure.disallowRotationOnConfigChange:$DisallowRotationOnConfigChange /recycling.logEventOnRecycle:$LogEventOnRecycle
+    }
+}
