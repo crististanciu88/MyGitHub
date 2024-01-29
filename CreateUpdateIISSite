@@ -87,3 +87,17 @@ function CreateOrUpdateIISSite {
 
 # Example usage:
 CreateOrUpdateIISSite -RootName "RootSite" -RootAppPoolName "RootAppPool" -RootPhysicalPath "C:\RootSite" -RootLoggingDirectory "C:\Logs\RootSite" -Name "MySite" -AppPoolName "MyAppPool" -PhysicalPath "C:\MySite" -BindingInfo @("*:8080:", "*:8443:") -LoggingDirectory "C:\Logs\MySite"
+
+function SiteExistsUnderRootSite($siteName, $rootSiteName) {
+    $site = Get-IISSite -Name $siteName -ErrorAction SilentlyContinue
+
+    if ($site) {
+        $appPath = (Get-WebConfigurationProperty -Filter "system.applicationHost/sites/site[@name='$siteName']/application" -Name "path" -PSPath "IIS:\").Value
+
+        if ($appPath.StartsWith("/$rootSiteName")) {
+            return $true
+        }
+    }
+
+    return $false
+}
