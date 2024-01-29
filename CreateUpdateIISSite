@@ -1,35 +1,89 @@
 function CreateOrUpdateIISSite {
     param (
-        [string]$SiteName,
+        [string]$RootName,
+        [string]$RootAppPoolName,
+        [string]$RootPhysicalPath,
+        [string]$RootLoggingDirectory,
+        [string]$Name,
+        [string]$AppPoolName,
         [string]$PhysicalPath,
-        [string]$BindingInformation,
-        [string]$AppPoolName
+        [string[]]$BindingInfo,
+        [string]$LoggingDirectory
     )
 
-    # Check if the site exists using appcmd
-    $siteExists = & appcmd list site /name:$SiteName
+    # Function to create or update an IIS site using appcmd
+    function CreateOrUpdateSite {
+        param (
+            [string]$SiteName,
+            [string]$AppPoolName,
+            [string]$PhysicalPath,
+            [string[]]$BindingInfo,
+            [string]$LoggingDirectory
+        )
 
-    if ($SiteName -and $PhysicalPath -and $BindingInformation -and $AppPoolName) {
-        $updateCommands = @("/site.name:$SiteName", "/bindings:$BindingInformation", "/physicalPath:$PhysicalPath", "/applicationDefaults.applicationPool:$AppPoolName")
+        # Check if the site exists using appcmd
+        $siteExists = & appcmd list site $SiteName 2>&1 | Select-String "SITE NAME" -Quiet
 
-        # Check if any updates are needed
-        if ($siteExists -contains "SITE NAME") {
-            $appcmdArgs = @("set site", $updateCommands)
-            & appcmd $appcmdArgs
+        if ($siteExists) {
+            # Update the existing site using appcmd
+            & appcmd set site /site.name:$SiteName /[path='/'].[path='/'].physicalPath:$PhysicalPath
+            & appcmd set apppool /apppool.name:$AppPoolName /managedRuntimeVersion:$AppPoolRuntimeVersion
+            & appcmd set config /section:system.applicationHost/sites /[path='/$SiteName'].logfile.directory:$LoggingDirectory
 
-            Write-Host "Site '$SiteName' updated using appcmd."
+            Write-Host "Site '$SiteName' updated."
         } else {
             # Create a new site using appcmd
-            $appcmdArgs = @("add site", $updateCommands)
-            & appcmd $appcmdArgs
+            & appcmd add site /name:$SiteName /physicalPath:$PhysicalPath /bindings:$BindingInfo /logfile.directory:$LoggingDirectory
+            & appcmd set apppool /apppool.name:$AppPoolName /managedRuntimeVersion:$AppPoolRuntimeVersion
 
-            Write-Host "Site '$SiteName' created using appcmd."
+            Write-Host "Site '$SiteName' created."
         }
+    }
+
+    # Check if RootName parameter is provided
+    if ($RootName) {
+        # Check if the root site exists using appcmd
+        $rootSiteExists = & appcmd list site $RootName 2>&1 | Select-String "SITE NAME" -Quiet
+
+        if ($rootSiteExists) {
+            # Update the existing root site using appcmd
+            & appcmd set site /site.name:$RootName /[path='/'].[path='/'].physicalPath:$RootPhysicalPath
+            & appcmd set apppool /apppool.name:$RootAppPoolName /managedRuntimeVersion:$AppPoolRuntimeVersion
+            & appcmd set config /section:system.applicationHost/sites /[path='/$RootName'].logfile.directory:$RootLoggingDirectory
+
+            Write-Host "Root site '$RootName' updated."
+        } else {
+            # Create a new root site using appcmd
+            & appcmd add site /name:$RootName /physicalPath:$RootPhysicalPath /bindings:$BindingInfo /logfile.directory:$RootLoggingDirectory
+            & appcmd set apppool /apppool.name:$RootAppPoolName /managedRuntimeVersion:$AppPoolRuntimeVersion
+
+            Write-Host "Root site '$RootName' created."
+        }
+    }
+
+    # Check if the standard site exists using appcmd
+    $siteExists = & appcmd list site $Name 2>&1 | Select-String "SITE NAME" -Quiet
+
+    if ($siteExists) {
+        # Update the existing standard site using appcmd
+        & appcmd set site /site.name:$Name /[path='/'].[path='/'].physicalPath:$PhysicalPath
+        & appcmd set apppool /apppool.name:$AppPoolName /managedRuntimeVersion:$AppPoolRuntimeVersion
+        & appcmd set config /section:system.applicationHost/sites /[path='/$Name'].logfile.directory:$LoggingDirectory
+
+        Write-Host "Site '$Name' updated."
     } else {
-        Write-Host "Some required parameters are missing. Site not created or updated."
+        # Create a new standard site using appcmd
+        if ($RootName) {
+            & appcmd add app /site.name:$RootName /path:/$Name /physicalPath:$PhysicalPath /bindings:$BindingInfo /logfile.directory:$LoggingDirectory
+        } else {
+            & appcmd add site /name:$Name /physicalPath:$PhysicalPath /bindings:$BindingInfo /logfile.directory:$LoggingDirectory
+        }
+
+        & appcmd set apppool /apppool.name:$AppPoolName /managedRuntimeVersion:$AppPoolRuntimeVersion
+
+        Write-Host "Site '$Name' created."
     }
 }
 
 # Example usage:
-# Replace with your actual values
-CreateOrUpdateIISSite -SiteName "YourSiteName" -PhysicalPath "C:\Your\Physical\Path" -BindingInformation "*:80:" -AppPoolName "YourAppPoolName"
+CreateOrUpdateIISSite -RootName "RootSite" -RootAppPoolName "RootAppPool" -RootPhysicalPath "C:\RootSite" -RootLoggingDirectory "C:\Logs\RootSite" -Name "MySite" -AppPoolName "MyAppPool" -PhysicalPath "C:\MySite" -BindingInfo @("*:8080:", "*:8443:") -LoggingDirectory "C:\Logs\MySite"
