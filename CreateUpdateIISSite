@@ -1,6 +1,45 @@
 function CreateOrUpdateIISSite {
     param (
         [string]$RootName,
+        [string]$NestedSiteName,
+        [string]$NestedPhysicalPath,
+        [string]$NestedBindingInformation,
+        [string]$NestedCertificateThumbprint
+    )
+
+    # Check if the root site exists
+    $rootSiteExists = & appcmd list site $RootName 2>&1 | Select-String "SITE NAME" -Quiet
+
+    # Create or update the root site
+    if (-not $rootSiteExists) {
+        & appcmd add site /name:$RootName /bindings:http/*:80:
+        & appcmd set app $RootName /enabledProtocols:http
+    }
+
+    # Check if the nested site exists
+    $nestedSiteExists = Get-WebApplication -Site $RootName | Where-Object { $_.Path -eq "/$NestedSiteName" }
+
+    # Create or update the nested site
+    if (-not $nestedSiteExists) {
+        New-WebApplication -Name $NestedSiteName -Site $RootName -PhysicalPath $NestedPhysicalPath
+    }
+
+    # Use appcmd to update the nested site
+    & appcmd set app "$RootName/$NestedSiteName" /enabledProtocols:http
+
+    # Check if a certificate thumbprint is provided and bind it
+    if ($NestedCertificateThumbprint) {
+        & appcmd set site "$RootName" /bindings:https/*:443:$NestedBindingInformation /cert:$NestedCertificateThumbprint
+    }
+}
+
+# Example usage:
+# CreateOrUpdateIISSite -RootName "RootSite" -NestedSiteName "NestedSite" -NestedPhysicalPath "C:\NestedSite" -NestedBindingInformation "*:80:" -NestedCertificateThumbprint "yourThumbprint"
+
+
+function CreateOrUpdateIISSite {
+    param (
+        [string]$RootName,
         [string]$RootAppPoolName,
         [string]$RootPhysicalPath,
         [string]$RootLoggingDirectory,
