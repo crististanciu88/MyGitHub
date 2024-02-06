@@ -1,3 +1,11 @@
+$appPoolName = "YourAppPoolName"
+
+$appPoolState = Get-IIAppPoolState -Name $appPoolName
+
+# Display the username of the running user
+Write-Host "Running User: $($appPoolState.IdentityType)\$($appPoolState.UserName)"
+
+
 Certainly, here are examples of how to synchronize a web application from Server 1 to Server 2 using MSDeploy. These examples assume that MSDeploy is installed on both servers and is configured for remote access.
 
 1. **Synchronize a Web Application via Package:**
