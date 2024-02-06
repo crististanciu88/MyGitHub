@@ -1,0 +1,34 @@
+@echo off
+setlocal
+
+rem List of server names
+set servers=Server1 Server2 Server3
+
+rem Path to the shared drive containing the new binaries
+set sharedDrivePath=\\your\shared\drive\path
+
+rem Name of the app pool
+set appPoolName=YourAppPoolName
+
+rem Loop through each server
+for %%s in (%servers%) do (
+    echo Processing server: %%s
+
+    rem Stop the app pool
+    psexec \\%%s "%SystemRoot%\system32\inetsrv\appcmd.exe" stop apppool /apppool.name:%appPoolName%
+
+    rem Backup existing binaries
+    set backupFolder=\\%%s\c$\Inetpub\wwwroot\%appPoolName%_Backup%date:~10,4%%date:~4,2%%date:~7,2%%time:~0,2%%time:~3,2%%time:~6,2%
+    robocopy "\\%%s\c$\Inetpub\wwwroot\%appPoolName%" "%backupFolder%" /MIR
+
+    rem Copy new binaries from shared drive
+    robocopy "%sharedDrivePath%\%%s" "\\%%s\c$\Inetpub\wwwroot\%appPoolName%" /MIR
+
+    rem Start the app pool
+    psexec \\%%s "%SystemRoot%\system32\inetsrv\appcmd.exe" start apppool /apppool.name:%appPoolName%
+
+    echo Completed processing server: %%s
+)
+
+echo Deployment to all servers completed.
+endlocal
