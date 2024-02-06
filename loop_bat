@@ -1,71 +1,42 @@
-@echo off
-setlocal
+# List of server names
+$servers = @("Server1", "Server2", "Server3")
 
-rem List of server names
-set servers=Server1 Server2 Server3
+# Path to the shared drive containing the new binaries
+$sharedDrivePath = "\\your\shared\drive\path"
 
-rem Path to the shared drive containing the new binaries
-set sharedDrivePath=\\your\shared\drive\path
+# Name of the app pool
+$appPoolName = "YourAppPoolName"
 
-rem Name of the app pool
-set appPoolName=YourAppPoolName
+# Loop through each server
+foreach ($server in $servers) {
+    Write-Host "Processing server: $server"
 
-rem Loop through each server
-for %%s in (%servers%) do (
-    echo Processing server: %%s
+    # Connect to the remote server
+    $session = New-PSSession -ComputerName $server
 
-    rem Stop the app pool
-    psexec \\%%s "%SystemRoot%\system32\inetsrv\appcmd.exe" stop apppool /apppool.name:%appPoolName%
+    # Stop the app pool
+    Invoke-Command -Session $session -ScriptBlock {
+        Stop-WebAppPool -Name $using:appPoolName
+    }
 
-    rem Backup existing binaries
-    set backupFolder=\\%%s\c$\Inetpub\wwwroot\%appPoolName%_Backup%date:~10,4%%date:~4,2%%date:~7,2%%time:~0,2%%time:~3,2%%time:~6,2%
-    robocopy "\\%%s\c$\Inetpub\wwwroot\%appPoolName%" "%backupFolder%" /MIR
+    # Backup existing binaries
+    $backupFolder = "$env:SystemDrive\Inetpub\wwwroot\$appPoolName\_Backup$(Get-Date -Format 'yyyyMMddHHmmss')"
+    Invoke-Command -Session $session -ScriptBlock {
+        Rename-Item -Path "$env:SystemDrive\Inetpub\wwwroot\$using:appPoolName" -NewName $using:backupFolder
+    }
 
-    rem Copy new binaries from shared drive
-    robocopy "%sharedDrivePath%\%%s" "\\%%s\c$\Inetpub\wwwroot\%appPoolName%" /MIR
+    # Copy new binaries from shared drive
+    Copy-Item -Path "$sharedDrivePath\$server\*" -Destination "$env:SystemDrive\Inetpub\wwwroot\$appPoolName" -Recurse
 
-    rem Start the app pool
-    psexec \\%%s "%SystemRoot%\system32\inetsrv\appcmd.exe" start apppool /apppool.name:%appPoolName%
+    # Start the app pool
+    Invoke-Command -Session $session -ScriptBlock {
+        Start-WebAppPool -Name $using:appPoolName
+    }
 
-    echo Completed processing server: %%s
-)
+    # Disconnect from the remote session
+    Remove-PSSession $session
 
-echo Deployment to all servers completed.
-endlocal
+    Write-Host "Completed processing server: $server"
+}
 
-
-@echo off
-setlocal
-
-rem List of server names
-set servers=Server1 Server2 Server3
-
-rem Path to the shared drive containing the new binaries
-set sharedDrivePath=\\your\shared\drive\path
-
-rem Name of the app pool
-set appPoolName=YourAppPoolName
-
-rem Loop through each server
-for %%s in (%servers%) do (
-    echo Processing server: %%s
-
-    rem Stop the app pool
-    psexec \\%%s "%SystemRoot%\system32\inetsrv\appcmd.exe" stop apppool /apppool.name:%appPoolName%
-
-    rem Backup existing binaries by renaming
-    set currentFolder=\\%%s\c$\Inetpub\wwwroot\%appPoolName%
-    set backupFolder=\\%%s\c$\Inetpub\wwwroot\%appPoolName%_Backup%date:~10,4%%date:~4,2%%date:~7,2%%time:~0,2%%time:~3,2%%time:~6,2%
-    ren "%currentFolder%" "%backupFolder%"
-
-    rem Copy new binaries from shared drive
-    robocopy "%sharedDrivePath%\%%s" "%currentFolder%" /MIR
-
-    rem Start the app pool
-    psexec \\%%s "%SystemRoot%\system32\inetsrv\appcmd.exe" start apppool /apppool.name:%appPoolName%
-
-    echo Completed processing server: %%s
-)
-
-echo Deployment to all servers completed.
-endlocal
+Write-Host "Deployment to all servers completed."
