@@ -1,0 +1,16 @@
+# Specify the site name and certificate thumbprint
+$siteName = "YourSiteName"
+$thumbprint = "YourCertificateThumbprint"
+
+# Get all bindings for the site
+$bindings = Get-WebBinding -Name $siteName
+
+# Find the HTTPS binding and set the certificate thumbprint
+$httpsBinding = $bindings | Where-Object { $_.Protocol -eq "https" }
+
+if ($httpsBinding) {
+    Set-WebBinding -Name $siteName -BindingInformation $httpsBinding.BindingInformation -PropertyName "CertificateHash" -Value $thumbprint
+    Write-Host "Certificate thumbprint added to HTTPS binding."
+} else {
+    Write-Host "No HTTPS binding found for the site."
+}
