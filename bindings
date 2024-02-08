@@ -14,3 +14,23 @@ if ($httpsBinding) {
 } else {
     Write-Host "No HTTPS binding found for the site."
 }
+
+
+# Specify the site name and certificate thumbprint
+$siteName = "YourSiteName"
+$thumbprint = "YourCertificateThumbprint"
+
+# Get the HTTPS bindings for the site
+$httpsBindings = Get-WebBinding -Name $siteName | Where-Object { $_.Protocol -eq "https" }
+
+foreach ($binding in $httpsBindings) {
+    $bindingInformation = $binding.BindingInformation
+    $ipAddress = ($bindingInformation -split ":")[0]
+    $port = ($bindingInformation -split ":")[2]
+
+    # Set the certificate thumbprint using netsh
+    netsh http delete sslcert ipport=0.0.0.0:$port
+    netsh http add sslcert ipport=0.0.0.0:$port certhash=$thumbprint appid='{APP_ID}'
+}
+
+Write-Host "Certificate thumbprint added to HTTPS binding using netsh."
