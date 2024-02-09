@@ -140,3 +140,5 @@ function SiteExistsUnderRootSite($siteName, $rootSiteName) {
 
     return $false
 }
+
+appcmd set app "YourSite/YourApp" /path:/YourVirtualPath /physicalPath:"C:\Your\Physical\Path" /applicationPool:YourAppPoolName /enabledProtocols:http,https
