@@ -1,10 +1,34 @@
+function Get-PeFileArchitecture($filePath) {
+    $stream = [System.IO.File]::OpenRead($filePath)
+    $reader = [System.IO.BinaryReader]::new($stream)
+
+    # Read the PE signature offset
+    $stream.Position = 60
+    $peOffset = $reader.ReadUInt32()
+
+    # Move to PE signature
+    $stream.Position = $peOffset
+    $peSignature = $reader.ReadUInt32()
+
+    # Check for PE signature
+    if ($peSignature -ne 0x00004550) {
+        return 'Not a valid PE file'
+    }
+
+    # Read the machine architecture
+    $stream.Position += 4
+    $machine = $reader.ReadUInt16()
+
+    # x86 (IMAGE_FILE_MACHINE_I386) or x64 (IMAGE_FILE_MACHINE_AMD64)
+    switch ($machine) {
+        0x014C { return 'x86' }
+        0x8664 { return 'x64' }
+        default { return 'Unknown' }
+    }
+}
+
 Get-ChildItem -Path "C:\Your\Folder\Path" -Filter *.dll, *.exe | ForEach-Object {
     $filePath = $_.FullName
-    $binaryType = (Get-Command $filePath).FileVersionInfo.FileHeader
-    $architecture = switch ($binaryType) {
-        "PE32" { "x86" }
-        "PE32+" { "x64" }
-        default { "Unknown" }
-    }
+    $architecture = Get-PeFileArchitecture -filePath $filePath
     Write-Host "$filePath : $architecture"
 }
