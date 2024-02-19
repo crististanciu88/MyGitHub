@@ -1,0 +1,10 @@
+Get-ChildItem -Path "C:\Your\Folder\Path" -Filter *.dll, *.exe | ForEach-Object {
+    $filePath = $_.FullName
+    $binaryType = (Get-Command $filePath).FileVersionInfo.FileHeader
+    $architecture = switch ($binaryType) {
+        "PE32" { "x86" }
+        "PE32+" { "x64" }
+        default { "Unknown" }
+    }
+    Write-Host "$filePath : $architecture"
+}
