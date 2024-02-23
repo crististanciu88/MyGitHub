@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<servers>
+  <environment name="DEV_UAT">
+    <server>devserver1</server>
+    <server>devserver2</server>
+  </environment>
+  <environment name="PROD_BCP">
+    <server>prodserver1</server>
+    <server>prodserver2</server>
+  </environment>
+</servers>
+
+
+$xmlUrl = "https://configurationsite/server_names.xml"  # Replace with actual URL
+
+$xmlContent = Invoke-WebRequest -Uri $xmlUrl
+
+if ($xmlContent.StatusCode -eq 200) {
+    # Parse XML content
+    $xml = [xml]$xmlContent.Content
+
+    # Get local hostname
+    $localHostname = [System.Net.Dns]::GetHostName()
+
+    # Find matching environment based on hostname
+    $matchingEnv = $xml.servers.environment | Where-Object { $_.server | Where-Object { $_ -eq $localHostname } }
+
+    if ($matchingEnv) {
+        # Identify the other server in the matching environment
+        $remoteServer = $matchingEnv.server | Where-Object { $_ -ne $localHostname }
+
+        if ($remoteServer) {
+            Write-Host "Remote server for deployment: $remoteServer"
+        } else {
+            Write-Warning "Local server not found in any environment!"
+        }
+    } else {
+        Write-Warning "No matching environment found for hostname: $localHostname"
+    }
+} else {
+    Write-Error "Failed to retrieve XML content. Status code: $($xmlContent.StatusCode)"
+}
