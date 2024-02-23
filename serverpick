@@ -41,14 +41,13 @@ if ($xmlContent.StatusCode -eq 200) {
     Write-Error "Failed to retrieve XML content. Status code: $($xmlContent.StatusCode)"
 }
 
-
 function Get-RemoteServer {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $env
+        [string] $env,
+        [Parameter(Mandatory = $true)]
+        [string] $xmlUrl
     )
-
-    $xmlUrl = "https://configurationsite/server_names.xml"  # Replace with actual URL
 
     $xmlContent = Invoke-WebRequest -Uri $xmlUrl
 
@@ -84,10 +83,12 @@ function Get-RemoteServer {
 
 # Example usage:
 $env = "DEV"
-$remoteServer = Get-RemoteServer -env $env
+$xmlUrl = "https://configurationsite/server_names.xml"  # Replace with actual URL
+$remoteServer = Get-RemoteServer -env $env -xmlUrl $xmlUrl
 
 if ($remoteServer) {
     Write-Host "Deploying to: $remoteServer"
 } else {
     Write-Warning "No valid remote server found."
 }
+
