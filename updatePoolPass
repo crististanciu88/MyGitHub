@@ -1,25 +1,33 @@
-function Update-AppPoolPassword {
+function Update-RemoteAppPoolPassword {
     param (
         [string]$user,
-        [string]$password
+        [string]$password,
+        [string]$server
     )
 
-    # Get all app pools on the server
-    $appPools = Get-WebAppPoolState | Select-Object -ExpandProperty Name
+    $scriptBlock = {
+        param ($user, $password)
 
-    foreach ($appPool in $appPools) {
-        # Use appcmd to get the username associated with the app pool
-        $currentUsername = & appcmd list apppool $appPool /text:processModel.userName
+        # Get all app pools on the server
+        $appPools = & appcmd list apppool /text:name
 
-        # Check if the current app pool's username matches the provided user
-        if ($currentUsername -eq $user) {
-            Write-Host "Updating password for App Pool: $appPool"
-            
-            # Use appcmd to set the new password for the app pool
-            & appcmd set apppool /apppool.name:$appPool /[path=''].processModel.password:$password
+        foreach ($appPool in $appPools) {
+            # Use appcmd to get the username associated with the app pool
+            $currentUsername = & appcmd list apppool $appPool /text:processModel.userName
+
+            # Check if the current app pool's username matches the provided user
+            if ($currentUsername -eq $user) {
+                Write-Host "Updating password for App Pool: $appPool"
+                
+                # Use appcmd to set the new password for the app pool
+                & appcmd set apppool /apppool.name:$appPool /[path=''].processModel.password:$password
+            }
         }
     }
+
+    # Invoke the script block on the remote server
+    Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock -ArgumentList $user, $password
 }
 
 # Example usage:
-# Update-AppPoolPassword -user "username" -password "newpassword"
+# Update-RemoteAppPoolPassword -user "username" -password "newpassword" -server "RemoteServerName"
