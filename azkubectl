@@ -1,0 +1,41 @@
+$pass = "Welcome@123" | ConvertTo-SecureString -AsPlainText -Force
+$user = "admin@crstanedu.onmicrosoft.com" 
+
+$MyCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $user, $pass
+
+Login-AzAccount
+Connect-AzAccount -Credential $MyCredential
+
+Set-AzContext -Subscription "76f13f76-9d88-4d9d-9039-25116f7eace0"
+
+#Get-Command -Verb Get -Noun AzVM* -Module Az.Compute
+
+#Task 1: Register the Microsoft.Kubernetes and Microsoft.KubernetesConfiguration resource providers.
+
+Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
+Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
+
+$RESOURCE_GROUP='ResourceGroup1'
+$AKS_CLUSTER='AksCluster1'
+
+Install-AzAksKubectl
+Import-AzAksCredential -ResourceGroupName $RESOURCE_GROUP -Name $AKS_CLUSTER
+kubectl get nodes
+kubectl create deployment nginx-deployment --image=nginx
+kubectl get pods
+#expose 80
+kubectl expose deployment nginx-deployment --port=80 --type=LoadBalancer
+kubectl get service
+#Scale pods 
+kubectl scale --replicas=2 deployment/nginx-deployment
+kubectl scale --replicas=10 deployment/nginx-deployment
+kubectl get pods
+kubectl get pod -o=custom-columns=NODE:.spec.nodeName,POD:.metadata.name
+
+kubectl describe pod nginx-deployment-84cd76b964-52zlc
+kubectl delete pod nginx-deployment-84cd76b964-vnfc5
+#Scale Cluster
+New-AzAks -ResourceGroupName ResourceGroup1 -Name AksCluster1 -NodeCount 2 -GenerateSshKey
+
+ 
+ kubectl delete deployment nginx-deployment
