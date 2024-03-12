@@ -17,3 +17,38 @@ $xml = [xml]@"
 
 # Save POM file
 $xml.Save("$artifactId.pom")
+
+---------------------------------------------------------------
+
+# Define Nexus repository details
+$baseUrl = "https://your-nexus-repository-url"
+$repository = "your-repository-name"
+$version = "your-artifact-version"
+$artifactType = "zip"
+
+# Define authentication credentials (if needed)
+$username = "your-username"
+$password = "your-password"
+$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("${username}:${password}")))
+
+# Build the Nexus API URL for fetching artifacts
+$apiUrl = "$baseUrl/service/rest/v1/search/assets?repository=$repository&group=&name=&version=$version&maven.groupId=&maven.artifactId=&maven.baseVersion=&maven.extension=$artifactType&maven.classifier="
+
+# Invoke the Nexus API to get the artifact details
+$response = Invoke-RestMethod -Uri $apiUrl -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)} -Method Get
+
+# Loop through the response and download each artifact
+foreach ($asset in $response.items) {
+    $artifactUrl = $asset.downloadUrl
+    $artifactName = $asset.name
+
+    # Create a destination path for the downloaded artifact
+    $destinationPath = "C:\Path\To\Your\Download\Folder\$artifactName"
+
+    # Download the artifact
+    Invoke-WebRequest -Uri $artifactUrl -OutFile $destinationPath -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)} -Method Get
+
+    Write-Host "Downloaded: $artifactName"
+}
+
+Write-Host "Download completed."
