@@ -5,18 +5,23 @@ function Get-DotNetFrameworkVersion {
         [string[]]$ServerList
     )
 
+    $results = @()
+
     foreach ($Server in $ServerList) {
-        Write-Host "Server: $Server"
         try {
-            $DotNetVersion = Get-WmiObject -Class Win32_Product -ComputerName $Server -Filter "Name like 'Microsoft .NET%'" | Select-Object -First 1 -ExpandProperty Version
-            if ($DotNetVersion) {
-                Write-Host ".NET Framework Version: $DotNetVersion"
-            } else {
-                Write-Host ".NET Framework not found on $Server"
+            $DotNetVersions = Get-WmiObject -Class Win32_Product -ComputerName $Server -Filter "Name like 'Microsoft .NET%'" | Select-Object -Property Name, Version
+            foreach ($Version in $DotNetVersions) {
+                $result = New-Object PSObject -Property @{
+                    ServerName = $Server
+                    '.NET Package Name' = $Version.Name
+                    '.NET Version' = $Version.Version
+                }
+                $results += $result
             }
         } catch {
             Write-Host "Error occurred while querying $Server: $_"
         }
-        Write-Host ""
     }
+
+    $results | Format-Table -AutoSize
 }
