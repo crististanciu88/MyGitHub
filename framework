@@ -9,7 +9,7 @@ function Get-DotNetFrameworkVersion {
 
     foreach ($Server in $ServerList) {
         try {
-            $DotNetVersions = Get-WmiObject -Class Win32_Product -ComputerName $Server -Filter "Name like 'Microsoft .NET%'" | Select-Object -Property Name, Version
+            $DotNetVersions = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like 'Microsoft .NET*' -and $_.__SERVER -eq $Server } | Select-Object -Property Name, Version
             foreach ($Version in $DotNetVersions) {
                 $result = New-Object PSObject -Property @{
                     ServerName = $Server
