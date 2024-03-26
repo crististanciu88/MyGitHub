@@ -9,21 +9,46 @@ $GroupPath = "your-group"
 $Group = Invoke-RestMethod -Uri "$GitLabUrl/groups/$GroupPath?private_token=$AccessToken" -Method Get
 $GroupId = $Group.id
 
-# Get projects in the group
-$Projects = Invoke-RestMethod -Uri "$GitLabUrl/groups/$GroupId/projects?private_token=$AccessToken&per_page=100" -Method Get
+# Initialize an array to store project data
+$ProjectData = @()
 
-# Iterate through each project
-foreach ($Project in $Projects) {
-    $ProjectId = $Project.id
-    $ProjectName = $Project.name
-
-    # Get last commit date for the project
-    $Commits = Invoke-RestMethod -Uri "$GitLabUrl/projects/$ProjectId/repository/commits?private_token=$AccessToken&per_page=1" -Method Get
-    if ($Commits.Count -gt 0) {
-        $LastCommitDate = $Commits[0].committed_date
-    } else {
-        $LastCommitDate = "No commits found"
-    }
-
-    Write-Host "Project: $ProjectName, Last Commit Date: $LastCommitDate"
+# Define function to retrieve projects with pagination
+function GetProjects {
+    param (
+        [int]$Page
+    )
+    $Projects = Invoke-RestMethod -Uri "$GitLabUrl/groups/$GroupId/projects?private_token=$AccessToken&per_page=100&page=$Page" -Method Get
+    return $Projects
 }
+
+# Get total number of projects in the group
+$TotalProjects = Invoke-RestMethod -Uri "$GitLabUrl/groups/$GroupId/projects?private_token=$AccessToken&per_page=1" -Method Get -Headers @{ "X-Total-Pages" = "true" }
+$TotalPages = $TotalProjects."X-Total-Pages"
+
+# Iterate through each page of projects
+for ($Page = 1; $Page -le $TotalPages; $Page++) {
+    $Projects = GetProjects -Page $Page
+
+    # Iterate through each project
+    foreach ($Project in $Projects) {
+        $ProjectId = $Project.id
+        $ProjectName = $Project.name
+
+        # Get last commit date for the project
+        $Commits = Invoke-RestMethod -Uri "$GitLabUrl/projects/$ProjectId/repository/commits?private_token=$AccessToken&per_page=1" -Method Get
+        if ($Commits.Count -gt 0) {
+            $LastCommitDate = $Commits[0].committed_date
+        } else {
+            $LastCommitDate = "No commits found"
+        }
+
+        # Add project data to array
+        $ProjectData += [PSCustomObject]@{
+            ProjectName = $ProjectName
+            LastCommitDate = $LastCommitDate
+        }
+    }
+}
+
+# Export project data to CSV
+$ProjectData | Export-Csv -Path "projects_last_commit_dates.csv" -NoTypeInformation
