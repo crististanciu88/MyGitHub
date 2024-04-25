@@ -1,0 +1,23 @@
+function ImportCertificate {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$CertificatePath,
+
+        [Parameter(Mandatory=$true)]
+        [string]$CertificatePass
+    )
+
+    try {
+        # Import the certificate
+        $cert = Import-PfxCertificate -FilePath $CertificatePath -Password (ConvertTo-SecureString -String $CertificatePass -AsPlainText -Force) -CertStoreLocation Cert:\LocalMachine\My -ErrorAction Stop
+        
+        Write-Output "Certificate successfully imported:"
+        Write-Output $cert
+
+    } catch {
+        Write-Error "Failed to import certificate: $_"
+    }
+}
+
+# Example usage:
+# ImportCertificate -CertificatePath "C:\Path\to\YourCertificate.pfx" -CertificatePass "YourPassword"
