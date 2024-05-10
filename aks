@@ -1,0 +1,1 @@
+az aks update --name myAKSCluster --resource-group myResourceGroup --vnet-subnet-id "/subscriptions/<subscription-id>/resourceGroups/<rg-name>/providers/Microsoft.Network/virtualNetworks/<vnet-name>/subnets/<subnet-name>"
