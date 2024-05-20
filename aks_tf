@@ -72,3 +72,49 @@ locals {
 
   aks_admin_group_object_id = "80f7067f-5b5b-4e80-84ae-af0d59b4e439" # not our group
 }
+
+
+
+
+module "aks_new" {
+  source  = "devcloud.ubs.net/iac/kubernetes-cluster/azurerm"
+  version = "3.2.1"
+
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  location            = azurerm_resource_group.aks_rg.location
+  cluster_name_suffix = "new"
+
+  subnet_name  = "USER-0501"
+  vnet_name    = local.vnet_name
+  vnet_rg_name = local.vnet_rg_name
+
+  disk_encryption_set_name    = var.csre_disk_encryption_set_name
+  disk_encryption_set_rg_name = var.csre_resource_group
+  storage_profile             = local.aks_storage_profile
+
+  admin_group_object_id = local.aks_admin_group_object_id
+  system_node_pool      = local.aks_system_node_pool
+  additional_node_pools = local.aks_new_cluster_node_pool
+  kubernetes_version    = local.kubernetes_version
+
+  image_cleaner_enabled      = local.aks_image_cleaner_enabled
+  ubs_upload_ca_certs_to_aks = local.aks_ubs_upload_ca_certs_to_aks
+  service_mesh_profile       = local.aks_service_mesh_profile
+
+  log_analytics_workspace_id          = local.log_analytics_workspace_id
+  log_analytics_defender_workspace_id = local.log_analytics_workspace_id
+
+  cp_user_assigned_identities = {
+    "dev" : {
+      uami_name    = "UAMI_DEV_NEU_AT3655_AKS_CP"
+      uami_rg_name = var.csre_resource_group
+    }
+  }
+  rt_user_assigned_identities = {
+    "dev" : {
+      uami_name    = "UAMI_DEV_NEU_AT3655_AKS_RT"
+      uami_rg_name = var.csre_resource_group
+    }
+  }
+  tags = module.tagging.subscription_tags
+}
