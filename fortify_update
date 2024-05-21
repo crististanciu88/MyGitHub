@@ -1,0 +1,9 @@
+stages:
+  - upload_fortify_scan
+
+upload_fortify_scan:
+  stage: upload_fortify_scan
+  script:
+    - powershell -Command "& { $fortifyClientPath = Get-ChildItem -Path 'C:\Program Files\Fortify\bin\' -Filter 'fortifyclient.exe' | Select-Object -ExpandProperty FullName; & $fortifyClientPath upload -artifact 'path/to/your/artifact' }"
+  tags:
+    - windows
