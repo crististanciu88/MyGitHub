@@ -1,0 +1,16 @@
+# Install prerequisites
+sudo dnf install wget tar
+
+# Download VSCode Server tarball
+wget https://update.code.visualstudio.com/latest/server-linux-x64/stable -O vscode-server.tar.gz
+
+# Extract tarball
+mkdir -p ~/.vscode-server
+tar -xzf vscode-server.tar.gz -C ~/.vscode-server
+
+# Add VSCode Server to PATH
+echo 'export PATH=$PATH:~/.vscode-server/bin' >> ~/.bashrc
+source ~/.bashrc
+
+# Start VSCode Server
+~/.vscode-server/bin/code-server
