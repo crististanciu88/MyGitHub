@@ -13,14 +13,14 @@ import (
 )
 
 type LoginResponse struct {
-	Request_Id     string
-	Lease_Id       string
-	Renewable      bool
-	Lease_Duration int
-	Data           string
-	Wrap_Info      string
-	Warnings       string
-	Auth           Auth
+	RequestId     string `json:"request_id"`
+	LeaseId       string `json:"lease_id"`
+	Renewable     bool   `json:"renewable"`
+	LeaseDuration int    `json:"lease_duration"`
+	Data          string `json:"data"`
+	WrapInfo      string `json:"wrap_info"`
+	Warnings      string `json:"warnings"`
+	Auth          Auth   `json:"auth"`
 }
 
 type CertLoginInput struct {
@@ -32,50 +32,50 @@ type CertLoginInput struct {
 }
 
 type Metadata struct {
-	Authority_Key_Id string
-	Cert_Name        string
-	Common_Name      string
-	Serial_Number    string
-	Subject_Key_Id   string
+	AuthorityKeyId string `json:"authority_key_id"`
+	CertName       string `json:"cert_name"`
+	CommonName     string `json:"common_name"`
+	SerialNumber   string `json:"serial_number"`
+	SubjectKeyId   string `json:"subject_key_id"`
 }
 
 type Auth struct {
-	Client_Token    string
-	Accessor        string
-	Policies        []string
-	Token_Policies  []string
-	Metadata        Metadata
-	Lease_Duration  int
-	Renewable       bool
-	Entity_Id       string
-	Token_Type      string
-	Orphan          bool
-	Mfa_Requirement string
-	Num_Uses        int
+	ClientToken    string   `json:"client_token"`
+	Accessor       string   `json:"accessor"`
+	Policies       []string `json:"policies"`
+	TokenPolicies  []string `json:"token_policies"`
+	Metadata       Metadata `json:"metadata"`
+	LeaseDuration  int      `json:"lease_duration"`
+	Renewable      bool     `json:"renewable"`
+	EntityId       string   `json:"entity_id"`
+	TokenType      string   `json:"token_type"`
+	Orphan         bool     `json:"orphan"`
+	MfaRequirement string   `json:"mfa_requirement"`
+	NumUses        int      `json:"num_uses"`
 }
 
 type ReadMetadata struct {
-	Created_Time    time.Time `json:"created_time"`
-	Custom_Metadata string
-	Deletion_Time   time.Time
-	Destroyed       bool
-	Version         int
+	CreatedTime    string `json:"created_time"`
+	CustomMetadata string `json:"custom_metadata"`
+	DeletionTime   string `json:"deletion_time"`
+	Destroyed      bool   `json:"destroyed"`
+	Version        int    `json:"version"`
 }
 
 type ReadData struct {
-	Data map[string]string `json:"data"`
+	Data     map[string]string `json:"data"`
+	Metadata ReadMetadata      `json:"metadata"`
 }
 
 type ReadResponse struct {
-	Request_Id     string
-	Lease_Id       string
-	Renewable      bool
-	Lease_Duration int
-	Data           ReadData
-	Wrap_Info      string
-	Warnings       string
-	Auth           Auth
-	Metadata       ReadMetadata `json:"data"`
+	RequestId     string   `json:"request_id"`
+	LeaseId       string   `json:"lease_id"`
+	Renewable      bool   `json:"renewable"`
+	LeaseDuration int      `json:"lease_duration"`
+	Data          ReadData `json:"data"`
+	WrapInfo      string   `json:"wrap_info"`
+	Warnings      string   `json:"warnings"`
+	Auth          Auth     `json:"auth"`
 }
 
 func main() {
@@ -139,7 +139,10 @@ func GetRotationDate() error {
 		return fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
-	createdTime := readResponse.Metadata.Created_Time
+	createdTime, err := time.Parse(time.RFC3339, readResponse.Data.Metadata.CreatedTime)
+	if err != nil {
+		return fmt.Errorf("failed to parse created_time: %v", err)
+	}
 
 	// Calculate the difference between current time and created time
 	now := time.Now()
@@ -195,7 +198,7 @@ func CertLogin(input CertLoginInput) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal login response: %v", err)
 	}
 
-	return loginResponse.Auth.Client_Token, nil
+	return loginResponse.Auth.ClientToken, nil
 }
 
 func createTLSClient(certPath, keyPath string) (*http.Client, error) {
