@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+	"context"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
 type LoginResponse struct {
@@ -29,6 +31,13 @@ type CertLoginInput struct {
 	Namespace string
 	CertPath  string
 	KeyPath   string
+}
+
+type UamiLoginInput struct {
+	UamiName  string
+	UamiID    string
+	Namespace string
+	EvaUrl    string
 }
 
 type Metadata struct {
@@ -79,10 +88,24 @@ type ReadResponse struct {
 }
 
 func main() {
+	// Example usage of GetRotationDate
 	err := GetRotationDate()
 	if err != nil {
 		log.Fatalf("Error getting rotation date: %v", err)
 	}
+
+	// Example usage of UamiLogin
+	uamiInput := UamiLoginInput{
+		UamiName:  "exampleUamiName",
+		UamiID:    "exampleUamiID",
+		Namespace: "exampleNamespace",
+		EvaUrl:    "https://vault.eu.eva.ubs.net/v1",
+	}
+	token, err := UamiLogin(uamiInput)
+	if err != nil {
+		log.Fatalf("Error logging in with UAMI: %v", err)
+	}
+	fmt.Println("UAMI token:", token)
 }
 
 func GetRotationDate() error {
@@ -101,7 +124,6 @@ func GetRotationDate() error {
 
 	url := "https://vault.eu.eva.ubs.net/v1/secret/data/runtime/a96ad003a6e00cb3ff1f49bce347f4baf6c96f2b29c51b66136e523871ae19b0/svc_efiduat"
 
-	// Create the request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
@@ -110,13 +132,11 @@ func GetRotationDate() error {
 	req.Header.Set("X-Vault-Token", accessToken)
 	req.Header.Set("X-Vault-Namespace", loginInput.Namespace)
 
-	// Create TLS client
 	client, err := createTLSClient(loginInput.CertPath, loginInput.KeyPath)
 	if err != nil {
 		return fmt.Errorf("failed to create TLS client: %v", err)
 	}
 
-	// Execute the request
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %v", err)
@@ -127,7 +147,6 @@ func GetRotationDate() error {
 		return fmt.Errorf("request returned status: %v", resp.Status)
 	}
 
-	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %v", err)
@@ -144,12 +163,10 @@ func GetRotationDate() error {
 		return fmt.Errorf("failed to parse created_time: %v", err)
 	}
 
-	// Calculate the difference between current time and created time
 	now := time.Now()
 	duration := now.Sub(createdTime)
 
-	// Check if the duration is less than 11 months
-	if duration < (11 * 30 * 24 * time.Hour) { // Rough approximation of 11 months
+	if duration < (11 * 30 * 24 * time.Hour) {
 		fmt.Printf("Time passed since created: %v\n", duration)
 	} else {
 		fmt.Println("Time passed is greater than 11 months")
@@ -177,6 +194,60 @@ func CertLogin(input CertLoginInput) (string, error) {
 		return "", fmt.Errorf("failed to create TLS client: %v", err)
 	}
 
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("login request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("login request returned status: %v", resp.Status)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read login response body: %v", err)
+	}
+
+	var loginResponse LoginResponse
+	err = json.Unmarshal(body, &loginResponse)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal login response: %v", err)
+	}
+
+	return loginResponse.Auth.ClientToken, nil
+}
+
+func UamiLogin(input UamiLoginInput) (string, error) {
+	cred, err := azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
+		ID: azidentity.ClientID(input.UamiID),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create managed identity credential: %v", err)
+	}
+
+	token, err := cred.GetToken(context.Background(), azidentity.TokenRequestOptions{
+		Scopes: []string{"https://management.azure.com/.default"},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get token: %v", err)
+	}
+
+	values := map[string]string{"name": input.UamiName}
+	jsonStr, err := json.Marshal(values)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal login values: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", input.EvaUrl+"/auth/azure/login", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		return "", fmt.Errorf("failed to create login request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Vault-Namespace", input.Namespace)
+	req.Header.Set("Authorization", "Bearer "+token.Token)
+
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("login request failed: %v", err)
