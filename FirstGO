@@ -2,14 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
-	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
@@ -79,7 +80,7 @@ type ReadData struct {
 type ReadResponse struct {
 	RequestId     string   `json:"request_id"`
 	LeaseId       string   `json:"lease_id"`
-	Renewable      bool   `json:"renewable"`
+	Renewable     bool     `json:"renewable"`
 	LeaseDuration int      `json:"lease_duration"`
 	Data          ReadData `json:"data"`
 	WrapInfo      string   `json:"wrap_info"`
@@ -88,40 +89,41 @@ type ReadResponse struct {
 }
 
 func main() {
-	// Example usage of GetRotationDate
-	err := GetRotationDate()
-	if err != nil {
-		log.Fatalf("Error getting rotation date: %v", err)
-	}
-
-	// Example usage of UamiLogin
-	uamiInput := UamiLoginInput{
-		UamiName:  "exampleUamiName",
-		UamiID:    "exampleUamiID",
-		Namespace: "exampleNamespace",
-		EvaUrl:    "https://vault.eu.eva.ubs.net/v1",
-	}
-	token, err := UamiLogin(uamiInput)
-	if err != nil {
-		log.Fatalf("Error logging in with UAMI: %v", err)
-	}
-	fmt.Println("UAMI token:", token)
-}
-
-func GetRotationDate() error {
-	loginInput := CertLoginInput{
+	// Example usage with CertLogin
+	certLoginInput := CertLoginInput{
 		Vaulturl:  "https://vault.eu.eva.ubs.net/v1",
 		Role:      "cert_fa29643",
 		Namespace: "AT3657",
 		CertPath:  "uat.runtime.crt",
 		KeyPath:   "uat.runtime.key",
 	}
-
-	accessToken, err := CertLogin(loginInput)
+	certToken, err := CertLogin(certLoginInput)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		log.Fatalf("Error logging in with certificate: %v", err)
+	}
+	err = GetRotationDate(certToken, certLoginInput.Namespace)
+	if err != nil {
+		log.Fatalf("Error getting rotation date: %v", err)
 	}
 
+	// Example usage with UamiLogin
+	uamiInput := UamiLoginInput{
+		UamiName:  "exampleUamiName",
+		UamiID:    "exampleUamiID",
+		Namespace: "exampleNamespace",
+		EvaUrl:    "https://vault.eu.eva.ubs.net/v1",
+	}
+	uamiToken, err := UamiLogin(uamiInput)
+	if err != nil {
+		log.Fatalf("Error logging in with UAMI: %v", err)
+	}
+	err = GetRotationDate(uamiToken, uamiInput.Namespace)
+	if err != nil {
+		log.Fatalf("Error getting rotation date: %v", err)
+	}
+}
+
+func GetRotationDate(token string, namespace string) error {
 	url := "https://vault.eu.eva.ubs.net/v1/secret/data/runtime/a96ad003a6e00cb3ff1f49bce347f4baf6c96f2b29c51b66136e523871ae19b0/svc_efiduat"
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -129,14 +131,10 @@ func GetRotationDate() error {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Vault-Token", accessToken)
-	req.Header.Set("X-Vault-Namespace", loginInput.Namespace)
+	req.Header.Set("X-Vault-Token", token)
+	req.Header.Set("X-Vault-Namespace", namespace)
 
-	client, err := createTLSClient(loginInput.CertPath, loginInput.KeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to create TLS client: %v", err)
-	}
-
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %v", err)
