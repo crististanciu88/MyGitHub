@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Variables
+UAMI_CLIENT_ID="<your-uami-client-id>"
+NAMESPACE="<your-namespace>"
+EVA_URL="https://vault.eu.eva.ubs.net/v1/auth/azure/login"
+ROLE_NAME="<your-role-name>"
+
+# Function to get the access token
+get_access_token() {
+  ACCESS_TOKEN=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/identity/oauth2/token?resource=https://vault.azure.net&client_id=${UAMI_CLIENT_ID}&api-version=2019-08-01" | jq -r '.access_token')
+  echo $ACCESS_TOKEN
+}
+
+# Get the access token
+ACCESS_TOKEN=$(get_access_token)
+
+if [ -z "$ACCESS_TOKEN" ]; then
+  echo "Failed to get access token"
+  exit 1
+fi
+
+# Prepare the request body
+REQUEST_BODY=$(jq -n --arg jwt "$ACCESS_TOKEN" --arg role "$ROLE_NAME" '{jwt: $jwt, role: $role}')
+
+# Make the request to the EVA URL
+RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/response_body.txt -X POST -H "Content-Type: application/json" -H "X-Vault-Namespace: $NAMESPACE" -d "$REQUEST_BODY" "$EVA_URL")
+
+# Get the HTTP status code
+HTTP_STATUS=$(tail -n1 /tmp/response_body.txt)
+
+# Check the response
+if [ "$HTTP_STATUS" -eq 200 ]; then
+  echo "Connectivity test successful"
+  cat /tmp/response_body.txt
+else
+  echo "Connectivity test failed with status code: $HTTP_STATUS"
+  cat /tmp/response_body.txt
+fi
+
+# Clean up
+rm /tmp/response_body.txt
