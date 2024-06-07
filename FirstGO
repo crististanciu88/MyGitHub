@@ -14,8 +14,8 @@ func UamiLogin(input UamiLoginInput) (string, error) {
 	}
 
 	values := map[string]string{
-		"jwt":      token.Token,
-		"roleName": input.UamiName,
+		"jwt":  token.Token,
+		"role": input.UamiName,
 	}
 	jsonStr, err := json.Marshal(values)
 	if err != nil {
