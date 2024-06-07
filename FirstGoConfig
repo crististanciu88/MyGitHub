@@ -1,0 +1,22 @@
+{
+    "UAT": {
+        "UamiName": "your-azure-uami-role-uat",
+        "UamiID": "your-azure-uami-id-uat",
+        "Namespace": "your-namespace-uat",
+        "EvaUrl": "https://vault.eu.eva.ubs.net/v1",
+        "EvaSecrets": [
+            "secret/data/runtime/a96ad003a6e00cb3ff1f49bce347f4baf6c96f2b29c51b66136e523871ae19b0/svc_efiduat",
+            "secret/data/runtime/another-secret"
+        ]
+    },
+    "PROD": {
+        "UamiName": "your-azure-uami-role-prod",
+        "UamiID": "your-azure-uami-id-prod",
+        "Namespace": "your-namespace-prod",
+        "EvaUrl": "https://vault.eu.eva.ubs.net/v1",
+        "EvaSecrets": [
+            "secret/data/runtime/prod-secret",
+            "secret/data/runtime/another-prod-secret"
+        ]
+    }
+}
