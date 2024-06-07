@@ -1,39 +1,50 @@
 func UamiAzLogin(uamiID string) (string, error) {
-	imdsURL := fmt.Sprintf("http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.core.windows.net/&client_id=%s&api-version=2023-07-01", uamiID)
-	fmt.Println("IMDS URL: ", imdsURL) // Log the IMDS URL
+	uamiURL := "http://169.254.169.254/metadata/identity/oauth2/token"
+	params := url.Values{}
+	params.Set("resource", "https://management.core.windows.net/")
+	params.Set("client_id", uamiID)
+	params.Set("api-version", "2023-07-01")
 
-	req, err := http.NewRequest("GET", imdsURL, nil)
+	u, err := url.Parse(uamiURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to create IMDS request: %v", err)
+		return "", fmt.Errorf("failed to parse UAMI URL: %v", err)
+	}
+	u.RawQuery = params.Encode()
+
+	fmt.Println("UAMI URL: ", u.String()) // Log the UAMI URL
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create UAMI request: %v", err)
 	}
 	req.Header.Set("Metadata", "true")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("IMDS request failed: %v", err)
+		return "", fmt.Errorf("UAMI request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("IMDS Response Status: ", resp.Status) // Log the response status
+	fmt.Println("UAMI Response Status: ", resp.Status) // Log the response status
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("IMDS request returned status: %v, response: %s", resp.Status, string(body))
+		return "", fmt.Errorf("UAMI request returned status: %v, response: %s", resp.Status, string(body))
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read IMDS response body: %v", err)
+		return "", fmt.Errorf("failed to read UAMI response body: %v", err)
 	}
 
-	var imdsResponse struct {
+	var uamiResponse struct {
 		AccessToken string `json:"access_token"`
 	}
-	err = json.Unmarshal(body, &imdsResponse)
+	err = json.Unmarshal(body, &uamiResponse)
 	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal IMDS response: %v", err)
+		return "", fmt.Errorf("failed to unmarshal UAMI response: %v", err)
 	}
 
-	return imdsResponse.AccessToken, nil
+	return uamiResponse.AccessToken, nil
 }
