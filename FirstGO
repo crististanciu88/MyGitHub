@@ -31,6 +31,9 @@ func UamiLogin(input UamiLoginInput) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal IMDS response: %v", err)
 	}
 
+	// Log IMDS response
+	log.Printf("IMDS Response: %s\n", string(body))
+
 	// Use the IMDS token to authenticate with the EVA Vault
 	values := map[string]string{
 		"jwt":  imdsResponse.AccessToken,
@@ -55,7 +58,8 @@ func UamiLogin(input UamiLoginInput) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("login request returned status: %v", resp.Status)
+		body, _ = ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf("login request returned status: %v, response: %s", resp.Status, string(body))
 	}
 
 	body, err = ioutil.ReadAll(resp.Body)
