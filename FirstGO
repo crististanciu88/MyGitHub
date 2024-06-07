@@ -7,14 +7,24 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
+
+type Config struct {
+	UamiName  string   `json:"UamiName"`
+	UamiID    string   `json:"UamiID"`
+	Namespace string   `json:"Namespace"`
+	EvaUrl    string   `json:"EvaUrl"`
+	EvaSecrets []string `json:"EvaSecrets"`
+}
 
 type UamiLoginInput struct {
 	UamiName  string
 	UamiID    string
 	Namespace string
 	EvaUrl    string
+	EvaSecrets []string
 }
 
 type LoginResponse struct {
@@ -58,9 +68,9 @@ type ReadData struct {
 type ReadResponse struct {
 	RequestId     string                 `json:"request_id"`
 	LeaseId       string                 `json:"lease_id"`
-	Renewable      bool                  `json:"renewable"`
+	Renewable     bool                   `json:"renewable"`
 	LeaseDuration int                    `json:"lease_duration"`
-	Data           map[string]interface{} `json:"data"`
+	Data          map[string]interface{} `json:"data"`
 	WrapInfo      string                 `json:"wrap_info"`
 	Warnings      string                 `json:"warnings"`
 	Auth          Auth                   `json:"auth"`
@@ -74,9 +84,28 @@ type ReadMetadata struct {
 	Version        int       `json:"version"`
 }
 
-func UamiLogin(input UamiLoginInput) (string, error) {
-	// Fetch the token from Azure IMDS for management.core.windows.net
-	imdsURL := fmt.Sprintf("http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.core.windows.net/&client_id=%s&api-version=2023-07-01", input.UamiID)
+func LoadConfig(env string) (*Config, error) {
+	file, err := os.Open("config.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open config file: %v", err)
+	}
+	defer file.Close()
+
+	var configs map[string]Config
+	if err := json.NewDecoder(file).Decode(&configs); err != nil {
+		return nil, fmt.Errorf("failed to decode config file: %v", err)
+	}
+
+	config, ok := configs[env]
+	if !ok {
+		return nil, fmt.Errorf("config for environment %s not found", env)
+	}
+
+	return &config, nil
+}
+
+func UamiAzLogin(uamiID string) (string, error) {
+	imdsURL := fmt.Sprintf("http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.core.windows.net/&client_id=%s&api-version=2023-07-01", uamiID)
 	req, err := http.NewRequest("GET", imdsURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create IMDS request: %v", err)
@@ -107,38 +136,39 @@ func UamiLogin(input UamiLoginInput) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal IMDS response: %v", err)
 	}
 
-	// Log IMDS response
-	log.Printf("IMDS Response: %s\n", string(body))
+	return imdsResponse.AccessToken, nil
+}
 
-	// Use the IMDS token to authenticate with the EVA Vault
+func EvaUamiLogin(uamiToken, uamiName, namespace, evaUrl string) (string, error) {
 	values := map[string]string{
-		"jwt":  imdsResponse.AccessToken,
-		"role": input.UamiName,
+		"jwt":  uamiToken,
+		"role": uamiName,
 	}
 	jsonStr, err := json.Marshal(values)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal login values: %v", err)
 	}
 
-	req, err = http.NewRequest("POST", input.EvaUrl+"/auth/azure/login", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", evaUrl+"/auth/azure/login", bytes.NewBuffer(jsonStr))
 	if err != nil {
 		return "", fmt.Errorf("failed to create login request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Vault-Namespace", input.Namespace)
+	req.Header.Set("X-Vault-Namespace", namespace)
 
-	resp, err = client.Do(req)
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("login request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ = ioutil.ReadAll(resp.Body)
+		body, _ := ioutil.ReadAll(resp.Body)
 		return "", fmt.Errorf("login request returned status: %v, response: %s", resp.Status, string(body))
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read login response body: %v", err)
 	}
@@ -196,31 +226,40 @@ func GetRotationDate(token, namespace, url string) (string, error) {
 	}
 
 	timeElapsed := time.Since(readMetadata.CreatedTime)
-	if timeElapsed < 11*30*24*time.Hour { // less than 11 months
+	if timeElapsed < 11*30*24*time.Hour {
 		return fmt.Sprintf("Time passed since creation: %v", timeElapsed), nil
 	}
-
-	return "Rotation not needed", nil
+	return "", nil
 }
 
 func main() {
-	uamiInput := UamiLoginInput{
-		UamiName:  "your-azure-uami-role",
-		UamiID:    "your-azure-uami-id",
-		Namespace: "your-namespace",
-		EvaUrl:    "https://vault.eu.eva.ubs.net/v1",
+	env := os.Getenv("ENV")
+	if env == "" {
+		log.Fatal("ENV environment variable is not set")
 	}
 
-	token, err := UamiLogin(uamiInput)
+	config, err := LoadConfig(env)
 	if err != nil {
-		log.Fatalf("UamiLogin failed: %v", err)
+		log.Fatalf("Error loading config: %v", err)
 	}
 
-	url := "https://vault.eu.eva.ubs.net/v1/secret/data/runtime/a96ad003a6e00cb3ff1f49bce347f4baf6c96f2b29c51b66136e523871ae19b0/svc_efiduat"
-	result, err := GetRotationDate(token, uamiInput.Namespace, url)
+	uamiToken, err := UamiAzLogin(config.UamiID)
 	if err != nil {
-		log.Fatalf("GetRotationDate failed: %v", err)
+		log.Fatalf("Error in UamiAzLogin: %v", err)
 	}
 
-	fmt.Println(result)
+	clientToken, err := EvaUamiLogin(uamiToken, config.UamiName, config.Namespace, config.EvaUrl)
+	if err != nil {
+		log.Fatalf("Error in EvaUamiLogin: %v", err)
+	}
+
+	for _, secret := range config.EvaSecrets {
+		fullUrl := config.EvaUrl + "/" + secret
+		result, err := GetRotationDate(clientToken, config.Namespace, fullUrl)
+		if err != nil {
+			log.Printf("Error in GetRotationDate for secret %s: %v", secret, err)
+			continue
+		}
+		fmt.Printf("Secret: %s, %s\n", secret, result)
+	}
 }
