@@ -4,7 +4,7 @@ It shows how to keep a history of all previous messages and feed them into the R
 #>
 
 # Define API key and endpoint
-$ApiKey = "sk-proj-4yx3ZB0P4C6sA1Dvtjz5T3BlbkFJeDDtFlAJKfYEB9EGX2JZ"
+$ApiKey = ""
 $ApiEndpoint = "https://api.openai.com/v1/chat/completions"
 
 <#
