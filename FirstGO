@@ -1,50 +1,42 @@
-func UamiAzLogin(uamiID string) (string, error) {
-	uamiURL := "http://169.254.169.254/metadata/identity/oauth2/token"
-	params := url.Values{}
-	params.Set("resource", "https://management.core.windows.net/")
-	params.Set("client_id", uamiID)
-	params.Set("api-version", "2023-07-01")
+func EvaApiLogin(clientID string, secret string, tenantID string, evaAPIURL string) (string, error) {
+	tokenURL := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID)
 
-	u, err := url.Parse(uamiURL)
+	data := url.Values{}
+	data.Set("client_id", clientID)
+	data.Set("scope", "https://vault.azure.net/.default")
+	data.Set("client_secret", secret)
+	data.Set("grant_type", "client_credentials")
+
+	req, err := http.NewRequest("POST", tokenURL, bytes.NewBufferString(data.Encode()))
 	if err != nil {
-		return "", fmt.Errorf("failed to parse UAMI URL: %v", err)
+		return "", fmt.Errorf("failed to create request: %v", err)
 	}
-	u.RawQuery = params.Encode()
-
-	fmt.Println("UAMI URL: ", u.String()) // Log the UAMI URL
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create UAMI request: %v", err)
-	}
-	req.Header.Set("Metadata", "true")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("UAMI request failed: %v", err)
+		return "", fmt.Errorf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("UAMI Response Status: ", resp.Status) // Log the response status
-
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("UAMI request returned status: %v, response: %s", resp.Status, string(body))
+		return "", fmt.Errorf("request returned status: %v, response: %s", resp.Status, string(body))
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read UAMI response body: %v", err)
+		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	var uamiResponse struct {
+	var response struct {
 		AccessToken string `json:"access_token"`
 	}
-	err = json.Unmarshal(body, &uamiResponse)
+	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal UAMI response: %v", err)
+		return "", fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
-	return uamiResponse.AccessToken, nil
+	return response.AccessToken, nil
 }
