@@ -1,42 +1,50 @@
-func EvaApiLogin(clientID string, secret string, tenantID string, evaAPIURL string) (string, error) {
-	tokenURL := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID)
+func EvaApiRotate(swci, domain, user, evaApiLoginToken, evaAPIURL string) (string, error) {
+	rotateURL := fmt.Sprintf("https://%s:8250/password/%s/%s/%s", evaAPIURL, domain, swci, user)
 
-	data := url.Values{}
-	data.Set("client_id", clientID)
-	data.Set("scope", "https://vault.azure.net/.default")
-	data.Set("client_secret", secret)
-	data.Set("grant_type", "client_credentials")
-
-	req, err := http.NewRequest("POST", tokenURL, bytes.NewBufferString(data.Encode()))
+	req, err := http.NewRequest("PUT", rotateURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %v", err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", evaApiLoginToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, // Useful to bypass self-signed certificate issues, but be cautious using this in production.
+		},
+	}
+	// Enable HTTP/2 for better compatibility
+	http2.ConfigureTransport(tr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req = req.WithContext(ctx)
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("request returned status: %v, response: %s", resp.Status, string(body))
-	}
-
+	// Read the response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	var response struct {
-		AccessToken string `json:"access_token"`
+	// Construct the raw content similar to the PowerShell output
+	rawContent := fmt.Sprintf("HTTP/1.1 %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+	for k, v := range resp.Header {
+		rawContent += fmt.Sprintf("%s: %s\n", k, v[0])
 	}
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %v", err)
-	}
+	rawContent += fmt.Sprintln()
+	rawContent += string(body)
 
-	return response.AccessToken, nil
+	// Print raw content to mimic PowerShell's $response2.RawContent
+	fmt.Println(rawContent)
+
+	return string(body), nil
 }
