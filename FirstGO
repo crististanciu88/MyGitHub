@@ -1,50 +1,42 @@
-func EvaApiRotate(swci, domain, user, evaApiLoginToken, evaAPIURL string) (string, error) {
-	rotateURL := fmt.Sprintf("https://%s:8250/password/%s/%s/%s", evaAPIURL, domain, swci, user)
+package main
 
-	req, err := http.NewRequest("PUT", rotateURL, nil)
+import (
+	"context"
+	"fmt"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+)
+
+// UamiAzLogin2 gets an access token using a User Assigned Managed Identity (UAMI).
+func UamiAzLogin2(clientID string) (string, error) {
+	// Create a ManagedIdentityCredential with the specified client ID
+	cred, err := azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
+		ID: azidentity.ClientID(clientID),
+	})
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %v", err)
+		return "", fmt.Errorf("failed to create managed identity credential: %v", err)
 	}
-	req.Header.Set("Authorization", evaApiLoginToken)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true, // Useful to bypass self-signed certificate issues, but be cautious using this in production.
-		},
-	}
-	// Enable HTTP/2 for better compatibility
-	http2.ConfigureTransport(tr)
+	// Define the Azure Resource Manager scope
+	scope := "https://management.core.windows.net/.default"
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	req = req.WithContext(ctx)
-	client := &http.Client{Transport: tr}
-	resp, err := client.Do(req)
+	// Get a token from the Managed Identity
+	token, err := cred.GetToken(context.TODO(), azcore.TokenRequestOptions{
+		Scopes: []string{scope},
+	})
 	if err != nil {
-		return "", fmt.Errorf("request failed: %v", err)
+		return "", fmt.Errorf("failed to get token: %v", err)
 	}
-	defer resp.Body.Close()
 
-	// Read the response body
-	body, err := ioutil.ReadAll(resp.Body)
+	return token.Token, nil
+}
+
+func main() {
+	clientID := "your-client-id"
+	token, err := UamiAzLogin2(clientID)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %v", err)
+		fmt.Printf("Error getting token: %v\n", err)
+		return
 	}
-
-	// Construct the raw content similar to the PowerShell output
-	rawContent := fmt.Sprintf("HTTP/1.1 %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
-	for k, v := range resp.Header {
-		rawContent += fmt.Sprintf("%s: %s\n", k, v[0])
-	}
-	rawContent += fmt.Sprintln()
-	rawContent += string(body)
-
-	// Print raw content to mimic PowerShell's $response2.RawContent
-	fmt.Println(rawContent)
-
-	return string(body), nil
+	fmt.Printf("Access Token: %s\n", token)
 }
