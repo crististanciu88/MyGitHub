@@ -1,42 +1,18 @@
-package main
-
-import (
-	"context"
-	"fmt"
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
-)
-
-// UamiAzLogin2 gets an access token using a User Assigned Managed Identity (UAMI).
-func UamiAzLogin2(clientID string) (string, error) {
-	// Create a ManagedIdentityCredential with the specified client ID
-	cred, err := azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
-		ID: azidentity.ClientID(clientID),
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to create managed identity credential: %v", err)
-	}
-
-	// Define the Azure Resource Manager scope
-	scope := "https://management.core.windows.net/.default"
-
-	// Get a token from the Managed Identity
-	token, err := cred.GetToken(context.TODO(), azcore.TokenRequestOptions{
-		Scopes: []string{scope},
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to get token: %v", err)
-	}
-
-	return token.Token, nil
-}
-
-func main() {
-	clientID := "your-client-id"
-	token, err := UamiAzLogin2(clientID)
-	if err != nil {
-		fmt.Printf("Error getting token: %v\n", err)
-		return
-	}
-	fmt.Printf("Access Token: %s\n", token)
-}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-container
+        image: myregistry.azurecr.io/my-image:latest
+        imagePullPolicy: Always
