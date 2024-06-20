@@ -1,18 +1,26 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: CronJob
 metadata:
-  name: my-deployment
+  name: go-app-cronjob
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: my-app
-  template:
-    metadata:
-      labels:
-        app: my-app
+  schedule: "*/5 * * * *"  # This cron expression schedules the job to run every 5 minutes.
+  jobTemplate:
     spec:
-      containers:
-      - name: my-container
-        image: myregistry.azurecr.io/my-image:latest
-        imagePullPolicy: Always
+      template:
+        spec:
+          containers:
+          - name: go-app
+            image: your-dockerhub-username/go-app:latest
+            imagePullPolicy: Always
+            env:
+            - name: UAMI_NAME
+              value: "your-azure-uami-role"
+            - name: UAMI_ID
+              value: "your-azure-uami-id"
+            - name: NAMESPACE
+              value: "your-namespace"
+            - name: EVA_URL
+              value: "https://vault.eu.eva.ubs.net/v1"
+            - name: EVA_SECRETS
+              value: "secret/data/runtime/secret1,secret/data/runtime/secret2"  # Comma-separated list of secrets
+          restartPolicy: OnFailure
