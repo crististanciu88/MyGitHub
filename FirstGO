@@ -1,26 +1,9 @@
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: go-app-cronjob
-spec:
-  schedule: "*/5 * * * *"  # This cron expression schedules the job to run every 5 minutes.
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: go-app
-            image: your-dockerhub-username/go-app:latest
-            imagePullPolicy: Always
-            env:
-            - name: UAMI_NAME
-              value: "your-azure-uami-role"
-            - name: UAMI_ID
-              value: "your-azure-uami-id"
-            - name: NAMESPACE
-              value: "your-namespace"
-            - name: EVA_URL
-              value: "https://vault.eu.eva.ubs.net/v1"
-            - name: EVA_SECRETS
-              value: "secret/data/runtime/secret1,secret/data/runtime/secret2"  # Comma-separated list of secrets
-          restartPolicy: OnFailure
+let targetContainers = ContainerInventory 
+| where ContainerHostname contains "rotator"
+| project ContainerID, Name;
+
+ContainerLog
+| where ContainerID in (targetContainers)
+| where LogMessage contains "error"  // Filter logs containing the word "error"
+| project TimeGenerated, ContainerID, LogEntry, LogMessage
+| order by TimeGenerated desc
