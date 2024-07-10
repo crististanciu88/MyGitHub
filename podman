@@ -1,0 +1,69 @@
+Certainly! Here’s a step-by-step guide on how to push an image to a Nexus registry using Podman:
+
+### Prerequisites
+1. **Nexus Repository Manager**: Ensure you have a Nexus Repository Manager running and configured to accept Docker (OCI) images.
+2. **Authentication**: Ensure you have the necessary credentials to push images to the Nexus repository.
+
+### Steps
+
+1. **Log in to the Nexus Repository**:
+   Use the `podman login` command to authenticate against your Nexus repository. Replace `nexus.example.com` with your Nexus repository URL and follow the prompt to enter your username and password.
+
+   ```bash
+   podman login nexus.example.com
+   ```
+
+   Example:
+   ```bash
+   podman login nexus.example.com
+   Username: your-username
+   Password: your-password
+   ```
+
+2. **Tag your image**:
+   Tag the image with the Nexus repository URL. Replace `[local_image_name]` with the name of the image you want to push, `nexus.example.com` with your Nexus server URL, `[repository]` with the Nexus repository name, and `[image_name]` with the name you want to use for the image in the Nexus repository.
+
+   ```bash
+   podman tag [local_image_name] nexus.example.com/[repository]/[image_name]:[tag]
+   ```
+
+   For example, if your local image is named `my-local-image` and you want to push it to a repository called `docker-repo` on your Nexus server with the tag `latest`:
+   ```bash
+   podman tag my-local-image nexus.example.com/docker-repo/my-local-image:latest
+   ```
+
+3. **Push the image to the Nexus Repository**:
+   Use the `podman push` command to push the tagged image to the Nexus repository.
+
+   ```bash
+   podman push nexus.example.com/[repository]/[image_name]:[tag]
+   ```
+
+   Continuing with the previous example:
+   ```bash
+   podman push nexus.example.com/docker-repo/my-local-image:latest
+   ```
+
+### Complete Example Workflow
+1. **Log in**:
+   ```bash
+   podman login nexus.example.com
+   ```
+
+2. **Tag the image**:
+   ```bash
+   podman tag my-local-image nexus.example.com/docker-repo/my-local-image:latest
+   ```
+
+3. **Push the image**:
+   ```bash
+   podman push nexus.example.com/docker-repo/my-local-image:latest
+   ```
+
+Once the push is complete, your image should be available in your Nexus repository.
+
+### Troubleshooting
+- **Authentication Issues**: Ensure your credentials are correct. If you’re using a self-signed certificate, you might need to make Podman trust it.
+- **Network Issues**: Ensure that your system can reach the Nexus server and that the relevant ports are open.
+
+By following these steps, you should be able to successfully push a Podman image to a Nexus registry.
