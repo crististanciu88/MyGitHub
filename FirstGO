@@ -7,3 +7,49 @@ ContainerLog
 | where LogMessage contains "error"  // Filter logs containing the word "error"
 | project TimeGenerated, ContainerID, LogEntry, LogMessage
 | order by TimeGenerated desc
+
+package main
+
+import (
+	"fmt"
+	"time"
+	"github.com/spf13/cobra"
+)
+
+func runTask() {
+	// Your task implementation
+	fmt.Println("Running task...")
+}
+
+func main() {
+	var rootCmd = &cobra.Command{
+		Use:   "main",
+		Short: "A task runner",
+		Run: func(cmd *cobra.Command, args []string) {
+			// Run the task once at the start
+			runTask()
+
+			// Timer loop to run the task every 24 hours
+			for {
+				select {
+				case <-time.After(24 * time.Hour):
+					runTask()
+				}
+			}
+		},
+	}
+
+	var testCmd = &cobra.Command{
+		Use:   "test",
+		Short: "Run the task once and exit",
+		Run: func(cmd *cobra.Command, args []string) {
+			runTask()
+		},
+	}
+
+	rootCmd.AddCommand(testCmd)
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+	}
+}
