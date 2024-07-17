@@ -13,16 +13,6 @@ type MailConfig struct {
 	SMTPPort int
 }
 
-// NewMailConfig is a constructor function to create a new MailConfig
-func NewMailConfig(from, password, smtpHost string, smtpPort int) *MailConfig {
-	return &MailConfig{
-		From:     from,
-		Password: password,
-		SMTPHost: smtpHost,
-		SMTPPort: smtpPort,
-	}
-}
-
 // SendEmail sends an email with the given details
 func (mc *MailConfig) SendEmail(to, subject, body string) error {
 	d := gomail.NewDialer(mc.SMTPHost, mc.SMTPPort, mc.From, mc.Password)
@@ -33,5 +23,40 @@ func (mc *MailConfig) SendEmail(to, subject, body string) error {
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
 
-	return d.DialAndSend(m)
+	if err := d.DialAndSend(m); err != nil {
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	return nil
+}
+
+
+package main
+
+import (
+	"fmt"
+	"yourproject/mail" // Adjust the import path according to your project structure
+)
+
+func main() {
+	// Initialize mail configuration directly
+	mailConfig := mail.MailConfig{
+		From:     "your-email@gmail.com",
+		Password: "your-gmail-password",
+		SMTPHost: "smtp.gmail.com",
+		SMTPPort: 587,
+	}
+
+	to := "recipient@example.com"
+	subject := "Subject: Testing Email from Go"
+	body := "This is a test email from Go using Gmail SMTP server."
+
+	// Send email using the SendEmail method
+	err := mailConfig.SendEmail(to, subject, body)
+	if err != nil {
+		fmt.Println("Failed to send email:", err)
+		return
+	}
+
+	fmt.Println("Email sent successfully!")
 }
