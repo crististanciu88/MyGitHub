@@ -1,0 +1,117 @@
+package yourpackage
+
+import (
+	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// Function to create a temporary JSON config file for testing
+func createTempConfigFile(content string) (string, error) {
+	tmpFile, err := ioutil.TempFile("", "test_config_*.json")
+	if err != nil {
+		return "", err
+	}
+	if _, err := tmpFile.Write([]byte(content)); err != nil {
+		return "", err
+	}
+	tmpFile.Close()
+	return tmpFile.Name(), nil
+}
+
+func TestLoadConfig(t *testing.T) {
+	originalEnv := os.Getenv("ENV")
+	defer os.Setenv("ENV", originalEnv) // Restore original ENV
+
+	tests := []struct {
+		env          string
+		configContent string
+		expectError  bool
+		expectedConfig *Config
+	}{
+		{
+			env: "test",
+			configContent: `{
+				"SecretsToRotate": ["secret1", "secret2"],
+				"Namespace": "testNamespace",
+				"EvaVaultURL": "http://example.com/vault",
+				"EvaUsers": [{"User": "alice", "VaultPath": "/path/to/alice", "Domain": "domain.com"}],
+				"SvcAccount": "testAccount",
+				"RuntimeCert": "testCert",
+				"RuntimeKey": "testKey",
+				"RuntimeSvcAccount": "testRuntimeSvcAccount",
+				"DeploySvcAccount": "testDeploySvcAccount",
+				"DeployCert": "testDeployCert",
+				"DeployKey": "testDeployKey",
+				"EvaApiURL": "http://example.com/api",
+				"AzTenantID": "azure-tenant-id"
+			}`,
+			expectError: false,
+			expectedConfig: &Config{
+				SecretsToRotate:  []string{"secret1", "secret2"},
+				Namespace:        "testNamespace",
+				EvaVaultURL:     "http://example.com/vault",
+				EvaUsers:        []EvaUser{{User: "alice", VaultPath: "/path/to/alice", Domain: "domain.com"}},
+				SvcAccount:      "testAccount",
+				RuntimeCert:     "testCert",
+				RuntimeKey:      "testKey",
+				RuntimeSvcAccount: "testRuntimeSvcAccount",
+				DeploySvcAccount: "testDeploySvcAccount",
+				DeployCert:      "testDeployCert",
+				DeployKey:       "testDeployKey",
+				EvaApiURL:      "http://example.com/api",
+				AzTenantID:      "azure-tenant-id",
+			},
+		},
+		{
+			env:         "missing",
+			expectError: true,
+		},
+		{
+			env: "invalid",
+			configContent: `{"invalid_json": true`,
+			expectError:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.env, func(t *testing.T) {
+			if test.env != "missing" {
+				configFilePath, err := createTempConfigFile(test.configContent)
+				if err != nil {
+					t.Fatalf("Failed to create temp config file: %v", err)
+				}
+				defer os.Remove(configFilePath)
+
+				// Set the environment variable
+				os.Setenv("ENV", test.env)
+
+				// Change path to use the created config file
+				originalExecutablePath := os.Executable
+				os.Executable = func() (string, error) {
+					return configFilePath, nil
+				}
+				defer func() { os.Executable = originalExecutablePath }() 
+			}
+
+			config, err := LoadConfig()
+
+			if test.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Did not expect to fail: %v", err)
+			}
+
+			if *config != *test.expectedConfig {
+				t.Errorf("Expected config %+v, but got %+v", *test.expectedConfig, *config)
+			}
+		})
+	}
+}
