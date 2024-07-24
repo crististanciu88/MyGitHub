@@ -1,0 +1,213 @@
+package main
+
+import (
+	"bytes"
+	"crypto/tls"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+)
+
+// Mocking environment variable and config file content
+func setupTestEnv(env string) {
+	os.Setenv("ENV", env)
+}
+
+func teardownTestEnv() {
+	os.Unsetenv("ENV")
+}
+
+// Test LoadConfig function
+func TestLoadConfig(t *testing.T) {
+	setupTestEnv("UAT")
+	defer teardownTestEnv()
+
+	configContent := `
+	{
+		"Secrets": ["secret1"],
+		"Namespace": "namespace",
+		"EvaVaultURl": "https://eva.vault.url",
+		"EvaUsers": [{"User": "user1", "VaultPath": "path1", "Domain": "domain1"}],
+		"SvcAccount": "svcAccount",
+		"RuntimeCert": "runtimeCert",
+		"RuntimeKey": "runtimeKey",
+		"RuntimeSvcAccount": "runtimeSvcAccount",
+		"DeploySvcAccount": "deploySvcAccount",
+		"DeployCert": "deployCert",
+		"DeployKey": "deployKey",
+		"DeployRole": "deployRole"
+	}`
+
+	configPath := "uat.config.json"
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+	defer os.Remove(configPath)
+
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if config.Namespace != "namespace" {
+		t.Errorf("Expected namespace 'namespace', got %v", config.Namespace)
+	}
+}
+
+// Test EvaApiLogin function
+func TestEvaApiLogin(t *testing.T) {
+	clientID := "clientID"
+	secret := "secret"
+	tenantID := "tenantID"
+	evaApiURL := "evaApiURL"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"access_token": "fake_token"})
+	}))
+	defer server.Close()
+
+	token, err := EvaApiLogin(clientID, secret, tenantID, server.URL)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	expectedToken := "Bearer fake_token"
+	if token != expectedToken {
+		t.Errorf("Expected token '%s', got %s", expectedToken, token)
+	}
+}
+
+// Test CertLogin function
+func TestCertLogin(t *testing.T) {
+	certPath := "test-cert.pem"
+	keyPath := "test-key.pem"
+	namespace := "namespace"
+	evaURL := "https://eva.url"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(LoginResponse{
+			Auth: Auth{
+				ClientToken: "fake_client_token",
+			},
+		})
+	}))
+	defer server.Close()
+
+	// Assuming createTLSClient is tested separately or mocked
+	origCreateTLSClient := createTLSClient
+	defer func() { createTLSClient = origCreateTLSClient }()
+	createTLSClient = func(certPath, keyPath string) (*http.Client, error) {
+		return server.Client(), nil
+	}
+
+	token, err := CertLogin(certPath, keyPath, namespace, server.URL)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	expectedToken := "fake_client_token"
+	if token != expectedToken {
+		t.Errorf("Expected token '%s', got %s", expectedToken, token)
+	}
+}
+
+// Test EvaApiRotate function
+func TestEvaApiRotate(t *testing.T) {
+	evaApiLoginToken := "token"
+	evaAPIURL := "https://eva.api.url"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message":            "success",
+			"evaPath":            "path",
+			"swci":               "swci",
+			"vaultSecretVersion": 1,
+		})
+	}))
+	defer server.Close()
+
+	result, err := EvaApiRotate(evaApiLoginToken, server.URL)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	expectedResult := "Result: success ,Version: 1\n"
+	if result != expectedResult {
+		t.Errorf("Expected result '%s', got %s", expectedResult, result)
+	}
+}
+
+// Test GetRotationDate function
+func TestGetRotationDate(t *testing.T) {
+	token := "token"
+	namespace := "namespace"
+	url := "https://eva.vault.url"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(ReadResponse{
+			Data: map[string]interface{}{
+				"metadata": ReadMetadata{
+					CreatedTime: time.Now().Add(-12 * time.Hour),
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	duration, err := GetRotationDate(token, namespace, server.URL)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if duration.Hours() < 12 {
+		t.Errorf("Expected duration >= 12 hours, got %v", duration)
+	}
+}
+
+// Test EvaGetSvcAccount function
+func TestEvaGetSvcAccount(t *testing.T) {
+	token := "token"
+	namespace := "namespace"
+	url := "https://eva.vault.url"
+	svc := "svc"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"data": map[string]interface{}{
+				"data": SvcReadResponse{
+					ClientId: "client-id",
+					Secret:   "secret",
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	response, err := EvaGetSvcAccount(token, namespace, server.URL, svc)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	expectedClientId := "client-id"
+	expectedSecret := "secret"
+	if response.ClientId != expectedClientId {
+		t.Errorf("Expected clientId '%s', got %s", expectedClientId, response.ClientId)
+	}
+	if response.Secret != expectedSecret {
+		t.Errorf("Expected secret '%s', got %s", expectedSecret, response.Secret)
+	}
+}
