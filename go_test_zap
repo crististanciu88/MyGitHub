@@ -1,0 +1,215 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"go.uber.org/zap"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// Mock HTTP client for testing
+type MockClient struct {
+	mock.Mock
+}
+
+func (m *MockClient) Do(req *http.Request) (*http.Response, error) {
+	args := m.Called(req)
+	return args.Get(0).(*http.Response), args.Error(1)
+}
+
+// Setup zap logger for tests
+func setupLogger(t *testing.T) *zap.Logger {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	return logger
+}
+
+func TestLoadConfig(t *testing.T) {
+	logger := setupLogger(t)
+	// Mock reading the file
+	fileContent := `{
+		"Secrets": ["runtime,path,user,domain"],
+		"Namespace": "test-namespace",
+		"EvaVaultURl": "http://example.com",
+		"EvaUsers": [{"User": "test-user", "VaultPath": "test-path", "Domain": "test-domain"}],
+		"SvcAccount": "test-svc",
+		"RuntimeCert": "test-runtime-cert",
+		"RuntimeKey": "test-runtime-key",
+		"RuntimeSvcAccount": "test-runtime-svc",
+		"DeploySvcAccount": "test-deploy-svc",
+		"DeployCert": "test-deploy-cert",
+		"DeployKey": "test-deploy-key",
+		"DeployRole": "test-deploy-role"
+	}`
+
+	tmpfile, err := ioutil.TempFile("", "config")
+	if err != nil {
+		logger.Fatal("Failed to create temp file", zap.Error(err))
+	}
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.Write([]byte(fileContent))
+	if err != nil {
+		logger.Fatal("Failed to write to temp file", zap.Error(err))
+	}
+
+	err = tmpfile.Close()
+	if err != nil {
+		logger.Fatal("Failed to close temp file", zap.Error(err))
+	}
+
+	// Override configPath for the test
+	configPath = tmpfile.Name()
+
+	config, err := LoadConfig()
+	if err != nil {
+		logger.Fatal("Failed to load config", zap.Error(err))
+	}
+
+	assert.Equal(t, "test-namespace", config.Namespace)
+	assert.Equal(t, "http://example.com", config.EvaVaultURl)
+	assert.Equal(t, "test-runtime-cert", config.RuntimeCert)
+}
+
+func TestEvaApiLogin(t *testing.T) {
+	logger := setupLogger(t)
+	client := new(MockClient)
+
+	tokenResponse := `{"access_token": "test-token"}`
+	client.On("Do", mock.Anything).Return(&http.Response{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(strings.NewReader(tokenResponse)),
+	}, nil)
+
+	httpClient = client
+
+	token, err := EvaApiLogin("test-client-id", "test-secret", "test-tenant-id", "http://example.com")
+	if err != nil {
+		logger.Error("EvaApiLogin failed", zap.Error(err))
+	}
+
+	assert.NoError(t, err)
+	assert.Equal(t, "Bearer test-token", token)
+}
+
+func TestCertLogin(t *testing.T) {
+	logger := setupLogger(t)
+	client := new(MockClient)
+
+	loginResponse := `{
+		"auth": {
+			"client_token": "test-client-token"
+		}
+	}`
+	client.On("Do", mock.Anything).Return(&http.Response{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(strings.NewReader(loginResponse)),
+	}, nil)
+
+	createTLSClient = func(certPath, keyPath string) (*http.Client, error) {
+		return client, nil
+	}
+
+	token, err := CertLogin("test-cert-path", "test-key-path", "test-namespace", "http://example.com")
+	if err != nil {
+		logger.Error("CertLogin failed", zap.Error(err))
+	}
+
+	assert.NoError(t, err)
+	assert.Equal(t, "test-client-token", token)
+}
+
+func TestEvaApiRotate(t *testing.T) {
+	logger := setupLogger(t)
+	client := new(MockClient)
+
+	rotateResponse := `{
+		"message": "Password rotated successfully",
+		"vaultSecretVersion": 2
+	}`
+	client.On("Do", mock.Anything).Return(&http.Response{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(strings.NewReader(rotateResponse)),
+	}, nil)
+
+	httpClient = client
+
+	resp, err := EvaApiRotate("Bearer test-token", "http://example.com")
+	if err != nil {
+		logger.Error("EvaApiRotate failed", zap.Error(err))
+	}
+
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "Password rotated successfully")
+	assert.Contains(t, resp, "Version: 2")
+}
+
+func TestGetRotationDate(t *testing.T) {
+	logger := setupLogger(t)
+	client := new(MockClient)
+
+	readResponse := `{
+		"data": {
+			"metadata": {
+				"created_time": "2023-07-24T12:34:56Z"
+			}
+		}
+	}`
+	client.On("Do", mock.Anything).Return(&http.Response{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(strings.NewReader(readResponse)),
+	}, nil)
+
+	httpClient = client
+
+	duration, err := GetRotationDate("test-token", "test-namespace", "http://example.com")
+	if err != nil {
+		logger.Error("GetRotationDate failed", zap.Error(err))
+	}
+
+	assert.NoError(t, err)
+	assert.True(t, duration < 24*time.Hour*30*12) // Should be less than 1 year
+}
+
+func TestEvaGetSvcAccount(t *testing.T) {
+	logger := setupLogger(t)
+	client := new(MockClient)
+
+	svcAccountResponse := `{
+		"data": {
+			"data": {
+				"client-id": "test-client-id",
+				"secret": "test-secret"
+			}
+		}
+	}`
+	client.On("Do", mock.Anything).Return(&http.Response{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(strings.NewReader(svcAccountResponse)),
+	}, nil)
+
+	httpClient = client
+
+	svcResp, err := EvaGetSvcAccount("test-token", "test-namespace", "http://example.com", "test-svc")
+	if err != nil {
+		logger.Error("EvaGetSvcAccount failed", zap.Error(err))
+	}
+
+	assert.NoError(t, err)
+	assert.Equal(t, "test-client-id", svcResp.ClientId)
+	assert.Equal(t, "test-secret", svcResp.Secret)
+}
