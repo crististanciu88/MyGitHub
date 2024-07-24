@@ -8,7 +8,7 @@ import (
     "testing"
 )
 
-// Create a temporary config file for testing
+// Function to create a temporary JSON config file for testing
 func createTempConfigFile(content string) (string, error) {
     tmpFile, err := ioutil.TempFile("", "test_config_*.json")
     if err != nil {
@@ -54,9 +54,17 @@ func CompareConfigs(a, b Config) bool {
         }()
 }
 
+// TestLoadConfig tests the LoadConfig function.
 func TestLoadConfig(t *testing.T) {
     originalEnv := os.Getenv("ENV")
     defer os.Setenv("ENV", originalEnv) // Restore original ENV
+
+    // Get the current executable directory
+    exePath, err := os.Executable()
+    if err != nil {
+        t.Fatalf("Failed to get executable path: %v", err)
+    }
+    exeDir := filepath.Dir(exePath)
 
     tests := []struct {
         env            string
@@ -109,38 +117,31 @@ func TestLoadConfig(t *testing.T) {
         },
     }
 
-    // Get the current executable path
-    executablePath, err := os.Executable()
-    if err != nil {
-        t.Fatalf("Failed to get executable path: %v", err)
-    }
-
     for _, test := range tests {
         t.Run(test.env, func(t *testing.T) {
             var configFilePath string
             if test.env != "missing" {
                 var err error
+                // Create the temporary config file
                 configFilePath, err = createTempConfigFile(test.configContent)
                 if err != nil {
                     t.Fatalf("Failed to create temp config file: %v", err)
                 }
                 defer os.Remove(configFilePath) // Clean up the temp file
 
+                // Copy the temporary config file to the executable's directory
+                targetPath := filepath.Join(exeDir, "test.json")
+                if err = os.Rename(configFilePath, targetPath); err != nil {
+                    t.Fatalf("Failed to move config file: %v", err)
+                }
+                defer os.Remove(targetPath) // Clean up the config file after the test
+
                 // Set the environment variable for the test
-                os.Setenv("ENV", test.env)
+                os.Setenv("ENV", "test")
             }
 
-            // Call LoadConfig with the mocked executable path
-            // Use the actual executable path constructed with the environment variable (the path for temporary file)
-            if test.env != "missing" {
-                os.Setenv("ENV", filepath.Base(configFilePath))
-            } else {
-                // For the "missing" case, we can point to the regular executable path
-                os.Setenv("ENV", "missing")
-            }
-
-            // Call LoadConfig
-            config, err := LoadConfig(executablePath)
+            // Call LoadConfig with the correct executable path
+            config, err := LoadConfig(exePath)
 
             if test.expectError {
                 if err == nil {
