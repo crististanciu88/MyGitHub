@@ -1,0 +1,112 @@
+package main
+
+import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+)
+
+// Mock response struct for testing
+type MockAuthResponse struct {
+	Auth Auth `json:"auth"`
+}
+
+// Test for CertLogin function
+func TestCertLogin(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Setup for successful login
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			response := MockAuthResponse{
+				Auth: Auth{
+					ClientToken: "test-token",
+				},
+			}
+			json.NewEncoder(w).Encode(response)
+		}))
+		defer ts.Close()
+
+		certFile, keyFile := generateSelfSignedCertificate(t)
+		defer os.Remove(certFile.Name())
+		defer os.Remove(keyFile.Name())
+
+		// Test CertLogin function
+		token, err := CertLogin(certFile.Name(), keyFile.Name(), "test-namespace", ts.URL)
+		if err != nil {
+			t.Errorf("TestCertLogin/Success: expected no error, got %v", err)
+		}
+
+		// Validate the token returned
+		if token != "test-token" {
+			t.Errorf("TestCertLogin/Success: expected token to be 'test-token', got %s", token)
+		} else {
+			t.Log("TestCertLogin/Success: PASSED")
+		}
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		// Setup for error response
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer ts.Close()
+
+		certFile, keyFile := generateSelfSignedCertificate(t)
+		defer os.Remove(certFile.Name())
+		defer os.Remove(keyFile.Name())
+
+		// Test CertLogin function
+		_, err := CertLogin(certFile.Name(), keyFile.Name(), "test-namespace", ts.URL)
+		if err == nil {
+			t.Error("TestCertLogin/Error: expected an error, got none")
+		} else {
+			t.Log("TestCertLogin/Error: PASSED")
+		}
+	})
+}
+
+// Test for createTLSClient function
+func TestCreateTLSClient(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		certFile, keyFile := generateSelfSignedCertificate(t)
+		defer os.Remove(certFile.Name())
+		defer os.Remove(keyFile.Name())
+
+		// Test create TLS client function
+		client, err := createTLSClient(certFile.Name(), keyFile.Name())
+		if err != nil {
+			t.Errorf("TestCreateTLSClient/Success: expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Error("TestCreateTLSClient/Success: expected non-nil client, got nil")
+		} else {
+			t.Log("TestCreateTLSClient/Success: PASSED")
+		}
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		// Test with invalid paths
+		_, err := createTLSClient("invalid-cert.pem", "invalid-key.pem")
+		if err == nil {
+			t.Error("TestCreateTLSClient/Error: expected an error for invalid TLS files, got none")
+		} else {
+			t.Log("TestCreateTLSClient/Error: PASSED")
+		}
+	})
+}
+
+// ... (other helper functions remain unchanged)
+
+func main() {
+	// This main function is not necessary but is included to satisfy the Go package requirement.
+}
