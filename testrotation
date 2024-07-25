@@ -1,0 +1,86 @@
+package eva_test
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"your_module_path/eva" // Replace with your actual module path
+)
+
+func TestGetRotationDate(t *testing.T) {
+	// Mock server
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		response := eva.ReadResponse{
+			RequestId: "req-123",
+			LeaseId:   "lease-123",
+			Renewable: true,
+			LeaseDuration: 3600,
+			Data: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"created_time": time.Now().Add(-time.Hour * 24).Format(time.RFC3339),
+					"custom_metadata": "example",
+					"deletion_time": "",
+					"destroyed": false,
+					"version": 1,
+				},
+			},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(handler))
+	defer ts.Close()
+
+	// Call the function with mock data
+	duration, err := eva.GetRotationDate("mock-token", "mock-namespace", ts.URL)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if duration.Seconds() < 86400 {
+		t.Errorf("expected duration to be at least 86400 seconds, got %v", duration.Seconds())
+	}
+}
+
+func TestEvaGetSvcAccount(t *testing.T) {
+	// Mock server
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		response := struct {
+			Data struct {
+				Data eva.SvcReadResponse `json:"data"`
+			} `json:"data"`
+		}{
+			Data: struct {
+				Data eva.SvcReadResponse `json:"data"`
+			}{
+				Data: eva.SvcReadResponse{
+					ClientId: "client-id-123",
+					Secret:   "secret-abc",
+				},
+			},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(handler))
+	defer ts.Close()
+
+	// Call the function with mock data
+	response, err := eva.EvaGetSvcAccount("mock-token", "mock-namespace", ts.URL, "mock-service")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if response.ClientId != "client-id-123" {
+		t.Errorf("expected ClientId to be 'client-id-123', got %s", response.ClientId)
+	}
+	if response.Secret != "secret-abc" {
+		t.Errorf("expected Secret to be 'secret-abc', got %s", response.Secret)
+	}
+}
