@@ -1,0 +1,110 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestEvaApiLogin(t *testing.T) {
+	t.Run("Successful Login", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"access_token": "test-access-token"}`))
+		}))
+		defer ts.Close()
+
+		got, err := EvaApiLogin("test-client-id", "test-secret", "test-tenant-id", ts.URL)
+		if err != nil {
+			t.Fatalf("EvaApiLogin() error = %v", err)
+		}
+		want := "Bearer test-access-token"
+		if got != want {
+			t.Errorf("EvaApiLogin() got = %v, want = %v", got, want)
+		}
+	})
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "invalid_grant"}`))
+		}))
+		defer ts.Close()
+
+		got, err := EvaApiLogin("test-client-id", "test-secret", "test-tenant-id", ts.URL)
+		if got != "" {
+			t.Errorf("EvaApiLogin() got = %v, want = %v", got, "")
+		}
+		if err == nil {
+			t.Fatal("Expected an error, got none")
+		}
+	})
+
+	t.Run("Invalid JSON Response", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid_json`))
+		}))
+		defer ts.Close()
+
+		got, err := EvaApiLogin("test-client-id", "test-secret", "test-tenant-id", ts.URL)
+		if got != "" {
+			t.Errorf("EvaApiLogin() got = %v, want = %v", got, "")
+		}
+		if err == nil {
+			t.Fatal("Expected an error, got none")
+		}
+	})
+}
+
+func TestApiRotate(t *testing.T) {
+	t.Run("Successful Rotate", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"message": "Success", "vaultSecretVersion": 1}`))
+		}))
+		defer ts.Close()
+
+		got, err := ApiRotate("Bearer test-access-token", ts.URL)
+		if err != nil {
+			t.Fatalf("ApiRotate() error = %v", err)
+		}
+		want := "Result: Success ,Version: 1\n"
+		if got != want {
+			t.Errorf("ApiRotate() got = %v, want = %v", got, want)
+		}
+	})
+
+	t.Run("Failed Rotate", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "failure"}`))
+		}))
+		defer ts.Close()
+
+		got, err := ApiRotate("Bearer test-access-token", ts.URL)
+		if got != "" {
+			t.Errorf("ApiRotate() got = %v, want = %v", got, "")
+		}
+		if err == nil {
+			t.Fatal("Expected an error, got none")
+		}
+	})
+
+	t.Run("Malformed JSON Response", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`invalid_json`))
+		}))
+		defer ts.Close()
+
+		got, err := ApiRotate("Bearer test-access-token", ts.URL)
+		if got != "" {
+			t.Errorf("ApiRotate() got = %v, want = %v", got, "")
+		}
+		if err == nil {
+			t.Fatal("Expected an error, got none")
+		}
+	})
+}
