@@ -1,0 +1,119 @@
+package main
+
+import (
+	"crypto/tls"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
+
+// Mock response struct for testing
+type MockAuthResponse struct {
+	Auth Auth `json:"auth"`
+}
+
+// Test for CertLogin function with a successful response
+func TestCertLogin_Success(t *testing.T) {
+	// Create a test HTTP server that simulates the actual login endpoint.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := MockAuthResponse{
+			Auth: Auth{
+				ClientToken: "test-token",
+			},
+		}
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer ts.Close()
+
+	// Create temporary certificate and key files for testing
+	certFile, err := os.CreateTemp("", "test-cert.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp cert file: %v", err)
+	}
+	keyFile, err := os.CreateTemp("", "test-key.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp key file: %v", err)
+	}
+	defer os.Remove(certFile.Name())
+	defer os.Remove(keyFile.Name())
+
+	// Test CertLogin function
+	token, err := CertLogin(certFile.Name(), keyFile.Name(), "test-namespace", ts.URL)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Validate the token returned
+	if token != "test-token" {
+		t.Fatalf("expected token to be 'test-token', got %s", token)
+	}
+}
+
+// Test for CertLogin function with an error response
+func TestCertLogin_Error(t *testing.T) {
+	// Create a test HTTP server that simulates an error response.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer ts.Close()
+
+	// Create temporary certificate and key files for testing
+	certFile, err := os.CreateTemp("", "test-cert.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp cert file: %v", err)
+	}
+	keyFile, err := os.CreateTemp("", "test-key.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp key file: %v", err)
+	}
+	defer os.Remove(certFile.Name())
+	defer os.Remove(keyFile.Name())
+
+	// Test CertLogin function
+	_, err = CertLogin(certFile.Name(), keyFile.Name(), "test-namespace", ts.URL)
+	if err == nil {
+		t.Fatalf("expected an error, got none")
+	}
+}
+
+// Test for createTLSClient function with valid input
+func TestCreateTLSClient_Success(t *testing.T) {
+	// Create temporary certificate and key files for testing
+	certFile, err := os.CreateTemp("", "test-cert.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp cert file: %v", err)
+	}
+	keyFile, err := os.CreateTemp("", "test-key.pem")
+	if err != nil {
+		t.Fatalf("failed to create temp key file: %v", err)
+	}
+	defer os.Remove(certFile.Name())
+	defer os.Remove(keyFile.Name())
+
+	// Test create TLS client function
+	client, err := createTLSClient(certFile.Name(), keyFile.Name())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if client == nil {
+		t.Fatalf("expected non-nil client, got nil")
+	}
+}
+
+// Test for createTLSClient function with invalid paths
+func TestCreateTLSClient_Error(t *testing.T) {
+	// Test with invalid paths
+	_, err := createTLSClient("invalid-cert.pem", "invalid-key.pem")
+	if err == nil {
+		t.Fatalf("expected an error for invalid TLS files, got none")
+	}
+}
+
+func main() {
+	// This main function is not necessary but is included to satisfy the Go package requirement.
+}
