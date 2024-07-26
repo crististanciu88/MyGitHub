@@ -1,0 +1,96 @@
+// Holds the server and the HTTP client for reuse
+var (
+	testServer *httptest.Server
+	httpClient *http.Client
+)
+
+// Initialize the test server and HTTP client before tests run
+func setup() {
+	httpClient = &http.Client{}
+
+	// Create a new test HTTP server
+	testServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// This handler can be customized in each test or overridden if needed
+		w.WriteHeader(http.StatusNotFound) // Default to 404 if no specific handler defined
+	}))
+}
+
+// Cleanup the test server after tests run
+func teardown() {
+	testServer.Close()
+}
+
+// Test for GetRotationDate
+func TestGetRotationDate(t *testing.T) {
+	setup()
+	defer teardown()
+
+	// Override the handler for this specific test
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		response := eva.ReadResponse{
+			Data: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"created_time": time.Now().Add(-time.Hour * 24).Format(time.RFC3339), // 24 hours ago
+					"version":      1,
+				},
+			},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+	}
+
+	// Set the test server handler
+	testServer.Config.Handler = http.HandlerFunc(handler)
+
+	// Call the function with mock data
+	duration, err := eva.GetRotationDate("mock-token", "mock-namespace", testServer.URL)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if duration.Seconds() < 86400 { // At least 24 hours
+		t.Errorf("expected duration to be at least 86400 seconds, got %v", duration.Seconds())
+	}
+}
+
+// Test for EvaGetSvcAccount
+func TestEvaGetSvcAccount(t *testing.T) {
+	setup()
+	defer teardown()
+
+	// Override the handler for this specific test
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		response := struct {
+			Data struct {
+				Data eva.SvcReadResponse `json:"data"`
+			} `json:"data"`
+		}{
+			Data: struct {
+				Data eva.SvcReadResponse `json:"data"`
+			}{
+				Data: eva.SvcReadResponse{
+					ClientId: "client-id-123",
+					Secret:   "secret-abc",
+				},
+			},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+	}
+
+	// Set the test server handler
+	testServer.Config.Handler = http.HandlerFunc(handler)
+
+	// Call the function with mock data
+	response, err := eva.EvaGetSvcAccount("mock-token", "mock-namespace", testServer.URL, "mock-service")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if response.ClientId != "client-id-123" {
+		t.Errorf("expected ClientId to be 'client-id-123', got %s", response.ClientId)
+	}
+	if response.Secret != "secret-abc" {
+		t.Errorf("expected Secret to be 'secret-abc', got %s", response.Secret)
+	}
+}
