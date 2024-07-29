@@ -1,0 +1,8 @@
+# Acquire access token for a specific Azure resource (e.g., Management or Storage)
+RESOURCE="https://management.azure.com/"  # Change this for the resource you aim to access
+TOKEN_URL="http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=${RESOURCE}"
+
+echo "Fetching access token..."
+access_token=$(curl -H "Metadata: true" $TOKEN_URL | jq -r '.access_token')
+
+echo $access_token  # Show or use this token in further requests
