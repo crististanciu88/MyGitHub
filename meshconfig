@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-config
+  namespace: aks-istio-ingress
+data:
+  mesh: |-
+    accessLogFile: /dev/stdout
+    accessLogFormat: |
+      [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" %RESPONSE_CODE% %RESPONSE_FLAGS% "%REQ(USER-AGENT)%" "%REQ(X-FORWARDED-FOR)%" "%REQ(:AUTHORITY)%" %UPSTREAM_HOST% %UPSTREAM_CLUSTER% %RESPONSE_CODE% %DURATION% %REQUEST_DURATION% %REQUEST_ID%
+    defaultConfig:
+      holdApplicationUntilProxyStarts: true
