@@ -6,17 +6,6 @@ metadata:
 data:
   mesh: |-
     accessLogFile: /dev/stdout
-    accessLogFormat: |
-    [[START]] Time: {{.StartTime}} | 
-    Request: {{.Request.Method}} {{.Request.URL}} | 
-    Response: {{.Response.Code}} | 
-    Duration: {{.Duration}}s | 
-    Bytes: {{.Response.Size}}B | 
-    Remote Address: {{.Request.RemoteAddr}} | 
-    User Agent: {{.Request.UserAgent}} | 
-    Referer: {{.Request.Referer}} | 
-    Destination Service: {{.Destination.Service}} | 
-    Source Workload: {{.Source.Workload}} | 
-    Destination Workload: {{.Destination.Workload}}
+    accessLogFormat: "{{.StartTime}} Request: {{.Request.Method}} {{.Request.URL}} | Response: {{.Response.Code}} | Duration: {{.Duration}} s | Bytes: {{.Response.Size}} B | Remote Address: {{.Request.RemoteAddr}} | User Agent: {{.Request.UserAgent}} | Referer: {{.Request.Referer}} | Destination Service: {{.Destination.Service}} | Source Workload: {{.Source.Workload}} | Destination Workload: {{.Destination.Workload}}"
     defaultConfig:
       holdApplicationUntilProxyStarts: true
