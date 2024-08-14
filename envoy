@@ -61,13 +61,27 @@ spec:
               end
             end
 ```
-            inline_code: |
-              function envoy_on_request(request_handle)
-                local requested_server_name = request_handle:streamInfo():requestedServerName()
-                if requested_server_name == "logs.rb-dev.azpriv-cloud.net" then
-                  -- Skip logging for this request
-                  request_handle:logInfo("Request to server name 'logs.rb-dev.azpriv-cloud.net' skipped.")
-                  return
-                end
-                request_handle:logInfo("Logging request: " .. requested_server_name)
-              end
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: exclude-access-logs
+  namespace: aks-istio-system  # Update with your destination namespace
+spec:
+  workloadSelector:
+    labels:
+      app: aks-istio-ingresgateway-internal  # Update with your ingress gateway app label
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY  # For ingress gateway; use SIDECAR_INBOUND if filtering within a pod
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+      patch:
+        operation: MERGE
+        value:
+          access_log:
+            - name: "envoy.access_loggers.stdout"  # Adapt logger configuration if needed
+              filter:
+                expression: "request.headers[\":authority\"] != \"logs.rb-dev.azpriv-cloud.net\" && streamInfo.requestedServerName != \"logs.rb-dev.azpriv-cloud.net\""
