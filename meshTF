@@ -1,1 +1,22 @@
 
+```hcl
+provider "kubernetes" {
+  host                   = azurerm_kubernetes_cluster.myaks.kube_admin_config.0.host
+  token                  = azurerm_kubernetes_cluster.myaks.kube_admin_config.0.token
+  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.myaks.kube_admin_config.0.cluster_ca_certificate)
+}
+
+resource "kubernetes_config_map" "istio_config" {
+  metadata {
+    name      = "istio-shared-config-asm-1-20"
+    namespace = "aks-istio-system"
+  }
+
+  data = {
+    mesh = <<EOF
+accessLogFile: /dev/stdout
+accessLogFormat: "[%START_TIME%] \"RequestMethod: %REQ(:METHOD)%\" \"OriginalRequestPath: %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%\" \"Protocol: %PROTOCOL%\" \"ResponseCode: %RESPONSE_CODE%\" \"ResponseFlags: %RESPONSE_FLAGS%\" \"ResponseCodeDetails: %RESPONSE_CODE_DETAILS%\" \"ConnectionTerminationDetails: %CONNECTION_TERMINATION_DETAILS%\" \"UpstreamTransportFailureReason: %UPSTREAM_TRANSPORT_FAILURE_REASON%\" \"BytesReceived: %BYTES_RECEIVED%\" \"BytesSent: %BYTES_SENT%\" \"Duration: %DURATION% ms\" \"UpstreamServiceTime: %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%\" \"X-Forwarded-For: %REQ(X-FORWARDED-FOR)%\" \"UserAgent: %REQ(USER-AGENT)%\" \"RequestID: %REQ(X-REQUEST-ID)%\" \"Authority: %REQ(:AUTHORITY)%\" \"UpstreamHost: %UPSTREAM_HOST%\" \"UpstreamCluster: %UPSTREAM_CLUSTER%\" \"UpstreamLocalAddress: %UPSTREAM_LOCAL_ADDRESS%\" \"DownstreamLocalAddress: %DOWNSTREAM_LOCAL_ADDRESS%\" \"DownstreamRemoteAddress: %DOWNSTREAM_REMOTE_ADDRESS%\" \"RequestedServerName: %REQUESTED_SERVER_NAME%\" \"RouteName: %ROUTE_NAME%\"\n
+EOF
+    defaultConfig = "holdApplicationUntilProxyStarts: true"
+  }
+}
