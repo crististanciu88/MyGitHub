@@ -26,3 +26,38 @@ spec:
           - name: "envoy.access_loggers.stdout"
             filter:
               filter_expression: "request.headers['x-envoy-internal'] == 'true'"
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: filter-logs
+  namespace: aks-istio-ingress
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway  # This selects the ingress gateway workloads
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: "envoy.filters.http.lua"
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+          inlineCode: |
+            function envoy_on_request(request_handle)
+              -- Check if the RouteName header is "kubetail"
+              local route_name = request_handle:headers():get("x-envoy-original-route-name") -- Use the appropriate header key
+              if route_name == "kubetail" then
+                -- Prevent logging for this request
+                request_handle:headers():replace("x-envoy-access-log", "false")
+              end
+            end
+```
