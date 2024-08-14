@@ -7,13 +7,14 @@
     "timezone": "browser",
     "schemaVersion": 30,
     "version": 1,
+    "refresh": "5s",
     "panels": [
       {
         "type": "table",
         "title": "Envoy Access Logs",
+        "datasource": "Azure Monitor",
         "targets": [
           {
-            "dataSource": "Azure Monitor",
             "query": "IstioAccessLog | take 100",
             "refId": "A",
             "rawQuery": true
@@ -21,7 +22,7 @@
         ],
         "columns": [
           {
-            "text": "Time",
+            "text": "Timestamp",
             "value": "timestamp"
           },
           {
@@ -46,33 +47,7 @@
           }
         ],
         "options": {
-          "showHeader": true,
-          "columns": [
-            {
-              "text": "Time",
-              "value": "timestamp"
-            },
-            {
-              "text": "Source IP",
-              "value": "sourceIp"
-            },
-            {
-              "text": "Method",
-              "value": "method"
-            },
-            {
-              "text": "Path",
-              "value": "path"
-            },
-            {
-              "text": "Response Code",
-              "value": "responseCode"
-            },
-            {
-              "text": "User Agent",
-              "value": "userAgent"
-            }
-          ]
+          "showHeader": true
         },
         "fieldConfig": {
           "defaults": {
@@ -85,11 +60,10 @@
           "x": 0,
           "y": 0,
           "w": 24,
-          "h": 20
+          "h": 15
         },
-        "pluginVersion": "8.5.0"  
-      },
-      // Additional panels can be added here
+        "pluginVersion": "8.5.0"
+      }
     ],
     "time": {
       "from": "now-1h",
