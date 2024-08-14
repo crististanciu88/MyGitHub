@@ -61,33 +61,17 @@ spec:
               end
             end
 ```
-apiVersion: networking.istio.io/v1alpha3
-kind: EnvoyFilter
-metadata:
-  name: exclude-access-logs
-  namespace: aks-istio-system  # Update with your destination namespace
-spec:
-  workloadSelector:
-    labels:
-      app: aks-istio-ingresgateway-internal  # Update with your ingress gateway app label
-  configPatches:
-    - applyTo: HTTP_FILTER
-      match:
-        context: GATEWAY  # For ingress gateway; use SIDECAR_INBOUND if filtering within a pod
-        listener:
-          filterChain:
-            filter:
-              name: "envoy.filters.network.http_connection_manager"
-      patch:
-        operation: MERGE
-        value:
-          access_log:
-            - name: "envoy.access_loggers.file"
-              typed_config:
-                "@type": "type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog"
-                log_format:
-                  text_format_source:
-                    inline_string: "Logging request for server: %REQ(:AUTHORITY)%\n"
-                path: "/dev/stdout"  # Change this to a file path as needed
-              filter:
-                expression: "request.headers[\":authority\"] != \"logs.rb-dev.azpriv-cloud.net\" && streamInfo.requestedServerName != \"logs.rb-dev.azpriv-cloud.net\""
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inline_code: |
+            function envoy_on_request(request_handle)
+              local route_name = request_handle:streamInfo():dynamicMetadata():get("envoy.filters.http.router"):get("routeName")
+              if route_name == "kubetail" then
+                -- Do not log this request, essentially returning early
+                return
+              end
+            end
