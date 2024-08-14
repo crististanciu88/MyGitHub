@@ -63,11 +63,11 @@ spec:
 ```
             inline_code: |
               function envoy_on_request(request_handle)
-                local original_path = request_handle:headers():get("x-envoy-original-path") or request_handle:headers():get(":path")
-                if original_path == "/graphql" then
+                local requested_server_name = request_handle:streamInfo():requestedServerName()
+                if requested_server_name == "logs.rb-dev.azpriv-cloud.net" then
                   -- Skip logging for this request
-                  request_handle:logInfo("Request to path '/graphql' skipped.")
+                  request_handle:logInfo("Request to server name 'logs.rb-dev.azpriv-cloud.net' skipped.")
                   return
                 end
-                request_handle:logInfo("Logging request: " .. original_path)
+                request_handle:logInfo("Logging request: " .. requested_server_name)
               end
