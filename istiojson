@@ -1,0 +1,100 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "istio-envoy-logs",
+    "title": "Istio Envoy Access Logs",
+    "tags": [],
+    "timezone": "browser",
+    "schemaVersion": 30,
+    "version": 1,
+    "panels": [
+      {
+        "type": "table",
+        "title": "Envoy Access Logs",
+        "targets": [
+          {
+            "dataSource": "Azure Monitor",
+            "query": "IstioAccessLog | take 100",
+            "refId": "A",
+            "rawQuery": true
+          }
+        ],
+        "columns": [
+          {
+            "text": "Time",
+            "value": "timestamp"
+          },
+          {
+            "text": "Source IP",
+            "value": "sourceIp"
+          },
+          {
+            "text": "Method",
+            "value": "method"
+          },
+          {
+            "text": "Path",
+            "value": "path"
+          },
+          {
+            "text": "Response Code",
+            "value": "responseCode"
+          },
+          {
+            "text": "User Agent",
+            "value": "userAgent"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "columns": [
+            {
+              "text": "Time",
+              "value": "timestamp"
+            },
+            {
+              "text": "Source IP",
+              "value": "sourceIp"
+            },
+            {
+              "text": "Method",
+              "value": "method"
+            },
+            {
+              "text": "Path",
+              "value": "path"
+            },
+            {
+              "text": "Response Code",
+              "value": "responseCode"
+            },
+            {
+              "text": "User Agent",
+              "value": "userAgent"
+            }
+          ]
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "width": 50
+            }
+          }
+        },
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 20
+        },
+        "pluginVersion": "8.5.0"  
+      },
+      // Additional panels can be added here
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  },
+  "overwrite": false
+}
