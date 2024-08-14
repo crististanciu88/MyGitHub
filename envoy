@@ -63,11 +63,11 @@ spec:
 ```
             inline_code: |
               function envoy_on_request(request_handle)
-                local route_name = request_handle:streamInfo():filterState():getStringValue("envoy.filters.http.router|route_name")
-                if route_name == "kubetail" then
+                local original_path = request_handle:headers():get("x-envoy-original-path") or request_handle:headers():get(":path")
+                if original_path == "/graphql" then
                   -- Skip logging for this request
-                  request_handle:logInfo("Request to route 'kubetail' skipped.")
+                  request_handle:logInfo("Request to path '/graphql' skipped.")
                   return
                 end
-                request_handle:logInfo("Logging request: " .. route_name)
+                request_handle:logInfo("Logging request: " .. original_path)
               end
