@@ -1,0 +1,6 @@
+AzureActivity
+| where ResourceProvider == "Microsoft.ContainerService"
+| where OperationName in ("Microsoft.ContainerService/managedClusters/agentPools/write", "Microsoft.ContainerService/managedClusters/agentPools/create")
+| where EventTimestamp >= ago(30d) // Look back over the past 30 days
+| project EventTimestamp, ResourceId, OperationName, Caller, Status, Properties
+| order by EventTimestamp desc
