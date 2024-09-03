@@ -1,44 +1,91 @@
-# Set the registry paths for TLS settings, Microsoft cryptography ciphers, SchUseStrongCrypto, and DefaultTLS
-$tlsPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols"
-$ciphersPath = "HKLM:\SOFTWARE\Microsoft\Cryptography\Configuration\Local\SSL\00010002"
-$ciphersPathAlt = "HKLM:\SOFTWARE\Microsoft\Cryptography\Configuration\Local\SSL\00010003"
-$schUseStrongCryptoPath = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319"
-$defaultTlsPath = "$schUseStrongCryptoPath\SystemDefaultTlsVersions"
+# PowerShell script to check and configure TLS 1.2 settings
 
-# Retrieve the TLS settings from the registry
-$tlsSettings = Get-ChildItem -Path $tlsPath -Recurse |
-    Where-Object { $_.Name -notmatch "DisabledByDefault|Client|Server" } |
-    ForEach-Object {
-        $protocol = $_.PSChildName
-        $enabled = (Get-ItemProperty -Path "$tlsPath\$protocol" -ErrorAction SilentlyContinue).Enabled
-        $sslSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\SSL 3.0" -ErrorAction SilentlyContinue).Enabled
-        $strongCryptoSetting = (Get-ItemProperty -Path "$tlsPath\$protocol\CipherSuites\*\RC4 128/128" -ErrorAction SilentlyContinue).Enabled
+function Check-TLSConfiguration {
+    Param (
+        [string]$protocol = "TLS 1.2"
+    )
 
-        [PSCustomObject]@{
-            Protocol = $protocol
-            Enabled = if ($enabled) { $enabled } else { "N/A" }
-            SSLEnabled = if ($sslSetting) { $sslSetting } else { "N/A" }
-            SchUseStrongCrypto = if ($strongCryptoSetting) { $strongCryptoSetting } else { "N/A" }
+    # Registry paths for TLS 1.2
+    $clientPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\$protocol\Client"
+    $serverPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\$protocol\Server"
+
+    $results = @()
+
+    # Check Client settings
+    if (Test-Path $clientPath) {
+        $enabled = Get-ItemProperty -Path $clientPath -Name 'Enabled' -ErrorAction SilentlyContinue
+        $disabledByDefault = Get-ItemProperty -Path $clientPath -Name 'DisabledByDefault' -ErrorAction SilentlyContinue
+
+        $results += [PSCustomObject]@{
+            Path                       = $clientPath
+            Enabled                    = $enabled.Enabled -eq 1
+            DisabledByDefault          = $disabledByDefault.DisabledByDefault -eq 0
+        }
+    } else {
+        $results += [PSCustomObject]@{
+            Path                       = $clientPath
+            Enabled                    = $false
+            DisabledByDefault          = $false
         }
     }
 
-# Retrieve the Microsoft cryptography cipher settings from the registry
-$cipherSettings = Get-ItemProperty -Path $ciphersPath -ErrorAction SilentlyContinue |
-    Select-Object -Property PSChildName, Enabled
-$cipherSettingsAlt = Get-ItemProperty -Path $ciphersPathAlt -ErrorAction SilentlyContinue |
-    Select-Object -Property PSChildName, Enabled
+    # Check Server settings
+    if (Test-Path $serverPath) {
+        $enabled = Get-ItemProperty -Path $serverPath -Name 'Enabled' -ErrorAction SilentlyContinue
+        $disabledByDefault = Get-ItemProperty -Path $serverPath -Name 'DisabledByDefault' -ErrorAction SilentlyContinue
 
-# Retrieve the SchUseStrongCrypto setting from the registry
-$schUseStrongCrypto = (Get-ItemProperty -Path $schUseStrongCryptoPath -Name "SchUseStrongCrypto" -ErrorAction SilentlyContinue)."SchUseStrongCrypto"
+        $results += [PSCustomObject]@{
+            Path                       = $serverPath
+            Enabled                    = $enabled.Enabled -eq 1
+            DisabledByDefault          = $disabledByDefault.DisabledByDefault -eq 0
+        }
+    } else {
+        $results += [PSCustomObject]@{
+            Path                       = $serverPath
+            Enabled                    = $false
+            DisabledByDefault          = $false
+        }
+    }
 
-# Retrieve the DefaultTLS setting from the registry
-$defaultTls = (Get-ItemProperty -Path $defaultTlsPath -Name "SchUseStrongCrypto" -ErrorAction SilentlyContinue)."SystemDefaultTlsVersions"
+    return $results
+}
 
-# Display the TLS, SSL, SchUseStrongCrypto, and Microsoft cryptography cipher settings in a table
-$tlsSettings | Format-Table -AutoSize
-Write-Host "`nMicrosoft Cryptography Ciphers (00010002):`n"
-$cipherSettings | Format-Table -AutoSize
-Write-Host "`nMicrosoft Cryptography Ciphers (00010003):`n"
-$cipherSettingsAlt | Format-Table -AutoSize
-Write-Host "`nSchUseStrongCrypto:`n$schUseStrongCrypto"
-Write-Host "`nDefaultTLS:`n$defaultTls"
+function Add-TLSConfiguration {
+    Param (
+        [string]$protocol = "TLS 1.2"
+    )
+
+    # Registry paths for TLS 1.2
+    $clientPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\$protocol\Client"
+    $serverPath = "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\$protocol\Server"
+
+    # Create client path if it doesn't exist
+    if (-not (Test-Path $clientPath)) {
+        New-Item -Path $clientPath -Force -ErrorAction SilentlyContinue | Out-Null
+        Set-ItemProperty -Path $clientPath -Name 'Enabled' -Value 1
+        Set-ItemProperty -Path $clientPath -Name 'DisabledByDefault' -Value 0
+        Write-Host "Created and configured: $clientPath"
+    } else {
+        Write-Host "Client configuration already exists: $clientPath"
+    }
+
+    # Create server path if it doesn't exist
+    if (-not (Test-Path $serverPath)) {
+        New-Item -Path $serverPath -Force -ErrorAction SilentlyContinue | Out-Null
+        Set-ItemProperty -Path $serverPath -Name 'Enabled' -Value 1
+        Set-ItemProperty -Path $serverPath -Name 'DisabledByDefault' -Value 0
+        Write-Host "Created and configured: $serverPath"
+    } else {
+        Write-Host "Server configuration already exists: $serverPath"
+    }
+
+    Write-Host "TLS Configuration check complete. Please restart the server to apply changes."
+}
+
+# Example usage:
+# Check current TLS configuration
+$checkResults = Check-TLSConfiguration
+$checkResults | Format-Table -AutoSize
+
+# Uncomment the line below to add the TLS configuration if needed
+# Add-TLSConfiguration
