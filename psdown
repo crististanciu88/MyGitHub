@@ -1,0 +1,47 @@
+```powershell
+param(
+    [string]$ComponentsInput
+)
+
+# Split the input string into individual component/version pairs
+$componentsArray = $ComponentsInput -split ','
+
+# Define a function to download a component
+function Download-Component {
+    param (
+        [string]$ComponentName,
+        [string]$ComponentVersion
+    )
+    Write-Host "Downloading $ComponentName version $ComponentVersion from Nexus..."
+    # Replace the following line with the actual Nexus download command
+    # Example Command: & C:\path\to\nexus_download.exe $ComponentName $ComponentVersion
+}
+
+# Iterate through each component/version pair
+foreach ($item in $componentsArray) {
+    # Split the component name and version using "-"
+    $splitItem = $item -split '-'
+    
+    if ($splitItem.Length -eq 2) {
+        $componentName = $splitItem[0].Trim() # Get the Component Name
+        $componentVersion = $splitItem[1].Trim() # Get the Component Version
+
+        # Call the download function
+        Download-Component -ComponentName $componentName -ComponentVersion $componentVersion
+    } else {
+        Write-Host "Error: The format for '$item' is incorrect. Please use 'ComponentName-Version'."
+    }
+}
+
+```
+
+### How to Use the Updated Script
+
+1. **Save the Script**: Save the above code to a file named `DownloadArtifacts.ps1`.
+
+2. **Run the Script**: You can run the script from PowerShell by providing the input as a single string. The input should contain multiple components formatted like `ComponentName-Version`, separated by commas.
+
+   For example:
+   ```powershell
+   .\DownloadArtifacts.ps1 -ComponentsInput "Component1-Version1, Component2-Version2, Component3-Version3"
+   ```
