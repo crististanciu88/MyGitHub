@@ -1,32 +1,40 @@
-# Define the parameters
-$ServerList = "C:\Path\To\Your\ServerList.txt" # Path to your text file with server names
-$ShareName = "CShare" # Name of the share you want to create
-$SharePath = "C:\" # Path to share
-$ReadOnlyGroups = @("Domain\\Group1", "Domain\\Group2") # Adjust according to your groups
+# List of Windows servers
+$servers = @("Server1", "Server2", "Server3")  # Add your server names here
 
-# Read the server list
-$Servers = Get-Content -Path $ServerList
-
-foreach ($Server in $Servers) {
-    try {
-        # Check if the share already exists
-        $existingShare = Get-WmiObject -Class Win32_Share -ComputerName $Server -ErrorAction Stop | Where-Object { $_.Name -eq $ShareName }
-
-        if ($existingShare) {
-            Write-Host "$ShareName already exists on $Server. Skipping creation."
-        } else {
-            # Create the share
-            New-SmbShare -Name $ShareName -Path $SharePath -FullAccess "Administrators" -ErrorAction Stop
-            Write-Host "Share $ShareName created on $Server."
-        }
-
-        # Set read-only permissions
-        foreach ($group in $ReadOnlyGroups) {
-            # Grant read access to the group
-            Grant-SmbShareAccess -Name $ShareName -AccountName $group -AccessRight Read -ErrorAction Stop
-            Write-Host "Granted read access for $group on $ShareName on $Server."
-        }
-    } catch {
-        Write-Host "An error occurred on $Server: $_"
-    }
+# Define the share names and their respective paths
+$shares = @{
+    "C" = "C:\"
+    "D" = "D:\"
 }
+
+# Define the group for permissions
+$group = "testdomain\testgroup"
+
+# Iterate through each server
+foreach ($server in $servers) {
+    Write-Host "Processing server: $server"
+
+    Invoke-Command -ComputerName $server -ScriptBlock {
+        param($shares, $group)
+
+        foreach ($shareName in $shares.Keys) {
+            $sharePath = $shares[$shareName]
+
+            # Check if the share exists
+            $share = Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue
+            if ($share -eq $null) {
+                # Create the share if it doesn't exist
+                Write-Host "Creating share $shareName with path $sharePath"
+                New-SmbShare -Name $shareName -Path $sharePath -FullAccess SYSTEM -ReadAccess Everyone
+            } else {
+                Write-Host "Share $shareName already exists"
+            }
+
+            # Grant the group read access to the SMB share
+            Write-Host "Granting read access to $group on share $shareName"
+            Grant-SmbShareAccess -Name $shareName -AccountName $group -AccessRight Read -Force
+        }
+    } -ArgumentList $shares, $group
+}
+
+Write-Host "Processing completed for all servers."
