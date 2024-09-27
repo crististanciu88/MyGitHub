@@ -1,0 +1,10 @@
+```powershell
+try {
+    $certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+    $certificate.Import($pfxFilePath, $pfxPassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet)
+    
+    $response = Invoke-WebRequest -Uri $url -Certificate $certificate
+    $response.Content
+} catch {
+    Write-Host "An error occurred: $_"
+}
