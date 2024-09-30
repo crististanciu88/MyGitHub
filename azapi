@@ -1,0 +1,37 @@
+### Method 2: Using Azure REST API
+
+1. **Authenticate and Get Access Token**
+   - You can use Azure AD to authenticate and get an access token. You can use Postman, or PowerShell to do this.
+   
+   Here is an example of how to get an access token using PowerShell:
+   ```powershell
+   $tenantId = "<Your-Tenant-ID>"
+   $clientId = "<Your-Client-ID>"
+   $clientSecret = "<Your-Client-Secret>"
+   $scope = "https://vault.azure.net/.default"
+   $body = @{
+       grant_type    = "client_credentials"
+       client_id     = $clientId
+       client_secret = $clientSecret
+       scope         = $scope
+   }
+   
+   $tokenResponse = Invoke-RestMethod -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" -Method Post -Body $body
+   $accessToken = $tokenResponse.access_token
+   ```
+
+2. **Make the API Call to Download the Certificate**
+   - After obtaining the access token, you can call the Azure Key Vault REST API to retrieve the certificate:
+   ```powershell
+   $keyVaultName = "<Your-Key-Vault-Name>"
+   $certName = "<Your-Certificate-Name>"
+   $url = "https://$keyVaultName.vault.azure.net/certificates/$certName?api-version=7.3"
+
+   $result = Invoke-RestMethod -Uri $url -Method Get -Headers @{Authorization = "Bearer $accessToken"}
+   $certBytes = [System.Convert]::FromBase64String($result.value)
+   $pfxFilePath = "C:\path\to\your\certificate.pfx"
+   [System.IO.File]::WriteAllBytes($pfxFilePath, $certBytes)
+   ```
+
+3. **Check the Certificate File**
+   - Verify that the certificate has been downloaded correctly.
