@@ -1,0 +1,104 @@
+Certainly! Below is a simple PowerShell script to achieve your requirements. This script takes two parameters: a PFX certificate path and a list of server names. It checks the local certificate store on each server for the specified technical account name certificate and compares it with the provided certificate.
+
+### PowerShell Script: Update-Certificates.ps1
+
+```powershell
+param (
+    [string]$PfxCertificatePath,
+    [string[]]$Servers
+)
+
+# Load PFX certificate
+try {
+    $newCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+    $newCert.Import($PfxCertificatePath)
+} catch {
+    Write-Host "Failed to load PFX certificate: $_"
+    exit
+}
+
+$technicalAccountName = "YourTechnicalAccountName"  # Replace with the actual certificate subject name related to the technical account
+
+foreach ($server in $Servers) {
+    try {
+        # Establish a remote session to the server
+        $session = New-PSSession -ComputerName $server -ErrorAction Stop
+
+        Invoke-Command -Session $session -ScriptBlock {
+            param ($technicalAccountName)
+
+            # Get the local machine certificate store
+            $certStore = [System.Security.Cryptography.X509Certificates.X509Store]::New("My","LocalMachine")
+            $certStore.Open("ReadOnly")
+
+            # Find the specific technical account certificate
+            $existingCert = $certStore.Certificates | Where-Object { $_.Subject -like "*$($using:technicalAccountName)*" }
+
+            $certStore.Close()
+
+            return $existingCert
+        } -ArgumentList $technicalAccountName | ForEach-Object {
+            $existingCert = $_
+
+            if ($existingCert) {
+                if ($newCert.NotAfter -gt $existingCert.NotAfter) {
+                    Write-Host "Updating certificate on $server, as the new certificate is newer."
+                    # Replace existing certificate
+                    Invoke-Command -Session $session -ScriptBlock {
+                        param ($pfxPath, $existingCertThumbprint)
+                        $certStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "LocalMachine")
+                        $certStore.Open("ReadWrite")
+                        $existingCert = $certStore.Certificates | Where-Object { $_.Thumbprint -eq $existingCertThumbprint }
+                        if ($existingCert) {
+                            $certStore.Remove($existingCert)
+                        }
+                        $newCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                        $newCert.Import($pfxPath)
+                        $certStore.Add($newCert)
+                        $certStore.Close()
+                    } -ArgumentList $PfxCertificatePath, $existingCert.Thumbprint
+                } else {
+                    Write-Host "No change needed for the certificate on $server."
+                }
+            } else {
+                Write-Host "No existing certificate found for $technicalAccountName on $server."
+                # If no existing certificate, you may add the new one if needed
+                Invoke-Command -Session $session -ScriptBlock {
+                    param ($pfxPath)
+                    $certStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "LocalMachine")
+                    $certStore.Open("ReadWrite")
+                    $newCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                    $newCert.Import($pfxPath)
+                    $certStore.Add($newCert)
+                    $certStore.Close()
+                } -ArgumentList $PfxCertificatePath
+            }
+        }
+
+        Remove-PSSession -Session $session
+    } catch {
+        Write-Host "Failed to process $server: $_"
+    }
+}
+```
+
+### Instructions to Use the Script
+
+1. **Parameters:**
+   - `$PfxCertificatePath`: The full path to the PFX certificate.
+   - `$Servers`: An array of server names where the certificate needs to be checked and potentially updated.
+
+2. **Technical Account Name:**
+   - Replace `YourTechnicalAccountName` in the script with the actual subject name or part of it for the technical account certificate you are targeting.
+
+3. **Execution:**
+   - Save the script as `Update-Certificates.ps1`.
+   - Run the script in PowerShell with the required parameters. Example:
+     ```shell
+     .\Update-Certificates.ps1 -PfxCertificatePath "C:\Path\To\YourCertificate.pfx" -Servers @("Server1", "Server2")
+     ```
+
+### Note
+- Ensure you have the necessary permissions to access remote servers and modify the certificate store.
+- The script assumes that `powershell remoting` is enabled on the target servers. Adjust configurations as necessary for your environment.
+- The script runs using `LocalMachine` certificate store which typically requires administrative privileges.
