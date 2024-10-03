@@ -1,15 +1,20 @@
 param (
     [string]$PfxCertificatePath,
-    [string[]]$Servers
+    [string[]]$Servers,
+    [string]$TechAccount,  # Technical account name
+    [string]$PfxPassword   # Password for the PFX certificate
 )
+
+# Convert the password to SecureString
+$securePassword = ConvertTo-SecureString $PfxPassword -AsPlainText -Force
 
 # Load PFX certificate
 try {
     $newCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-    $newCert.Import($PfxCertificatePath)
-
-    # Extract the technical account name from the new certificate
-    $technicalAccountName = ($newCert.Subject -split ', ' | Where-Object { $_ -like "CN=*" }) -replace 'CN=', ''
+    $newCert.Import($PfxCertificatePath, $securePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet)
+    
+    # Extract the CN from the new certificate
+    $cnFromNewCert = ($newCert.Subject -split ', ' | Where-Object { $_ -like "CN=*" }) -replace 'CN=', ''
 } catch {
     Write-Host "Failed to load PFX certificate: $_"
     exit
@@ -25,8 +30,8 @@ foreach ($server in $Servers) {
             $certStore = [System.Security.Cryptography.X509Certificates.X509Store]::New("My","LocalMachine")
             $certStore.Open("ReadOnly")
 
-            # Find the specific technical account certificate by CN
-            $existingCert = $certStore.Certificates | Where-Object { $_.Subject -like "*CN=$($using:technicalAccountName)*" }
+            # Find the existing technical account certificate by CN
+            $existingCert = $certStore.Certificates | Where-Object { $_.Subject -like "*CN=$using:TechAccount*" }
             $certStore.Close()
 
             return $existingCert
@@ -34,10 +39,10 @@ foreach ($server in $Servers) {
 
         if ($existingCert) {
             if ($newCert.NotAfter -gt $existingCert.NotAfter) {
-                Write-Host "Updating certificate on $server, as the new certificate is newer."
+                Write-Host "Updating certificate on $server for CN=$TechAccount, as the new certificate is newer."
                 # Replace existing certificate
                 Invoke-Command -Session $session -ScriptBlock {
-                    param ($pfxPath, $existingCertThumbprint)
+                    param ($pfxPath, $securePassword, $existingCertThumbprint)
                     $certStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "LocalMachine")
                     $certStore.Open("ReadWrite")
                     $existingCert = $certStore.Certificates | Where-Object { $_.Thumbprint -eq $existingCertThumbprint }
@@ -45,25 +50,25 @@ foreach ($server in $Servers) {
                         $certStore.Remove($existingCert)
                     }
                     $newCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-                    $newCert.Import($pfxPath)
+                    $newCert.Import($pfxPath, $securePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet)
                     $certStore.Add($newCert)
                     $certStore.Close()
-                } -ArgumentList $PfxCertificatePath, $existingCert.Thumbprint
+                } -ArgumentList $PfxCertificatePath, $securePassword, $existingCert.Thumbprint
             } else {
-                Write-Host "No change needed for the certificate on $server."
+                Write-Host "No change needed for the certificate on $server for CN=$TechAccount."
             }
         } else {
-            Write-Host "No existing certificate found for CN=$technicalAccountName on $server."
-            # If no existing certificate, you may add the new one if needed
+            Write-Host "No existing certificate found for CN=$TechAccount on $server."
+            # Add the new certificate if no existing certificate is found
             Invoke-Command -Session $session -ScriptBlock {
-                param ($pfxPath)
+                param ($pfxPath, $securePassword)
                 $certStore = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "LocalMachine")
                 $certStore.Open("ReadWrite")
                 $newCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-                $newCert.Import($pfxPath)
+                $newCert.Import($pfxPath, $securePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet)
                 $certStore.Add($newCert)
                 $certStore.Close()
-            } -ArgumentList $PfxCertificatePath
+            } -ArgumentList $PfxCertificatePath, $securePassword
         }
 
         Remove-PSSession -Session $session
