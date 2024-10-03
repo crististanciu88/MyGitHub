@@ -1,49 +1,52 @@
-```powershell
-param(
-    [string]$PfxCertificatePath,
-    [string]$TechnicalAccount
+param (
+    [string]$pfxCertificatePath,       # Path to the PFX certificate on the remote server
+    [string]$technicalAccount           # Subject name to look for in the certificate store
 )
 
-# Define the array of servers
-$servers = @("Server1", "Server2", "Server3") # Replace with your actual server names
+# Define your array of servers (update with your server names/addresses)
+$servers = @("Server1", "Server2", "Server3")
 
-# Password for the PFX file
-$pfxPassword = ConvertTo-SecureString "pass" -AsPlainText -Force
+# Import the PFX Certificate
+$pfxPassword = Read-Host "Enter PFX Password" -AsSecureString
+$pfxCertificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+$pfxCertificate.Import($pfxCertificatePath, $pfxPassword, 'Exportable')
 
-# Loop through each server
 foreach ($server in $servers) {
-    Write-Host "Connecting to $server..."
+    # Use Invoke-Command to run the actions on the remote server
+    Invoke-Command -ComputerName $server -ScriptBlock {
+        param (
+            $pfxCertificate,
+            $technicalAccount
+        )
 
-    # Create a session to the remote server
-    $session = New-PSSession -ComputerName $server
+        # Open the LocalMachine\Root store
+        $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "LocalMachine")
+        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 
-    try {
-        Invoke-Command -Session $session -ScriptBlock {
-            param($PfxCertificatePath, $TechnicalAccount, $SecurePassword)
+        # Check for existing certificate with the specified subject
+        $existingCertificate = $store.Certificates | Where-Object { $_.Subject -eq "CN=$technicalAccount" }
 
-            # Load the required module if necessary
-            Import-Module -Name "PKI" -ErrorAction SilentlyContinue
-
-            # Step 1: Import the new certificate
-            $newCert = Import-PfxCertificate -FilePath $PfxCertificatePath -CertStoreLocation Cert:\LocalMachine\My -Password $SecurePassword
-
-            # Step 2: Get the existing certificate with the specified subject
-            $existingCert = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -like "*$($TechnicalAccount)*" }
-
-            if ($existingCert) {
-                Write-Host "Existing certificate for $TechnicalAccount found on $env:COMPUTERNAME."
-
-                # Switch the certificate: oldCertThumbprint is the existing one, newCert is the newly imported one
-                Switch-Certificate -Thumbprint $existingCert.Thumbprint -NewThumbprint $newCert.Thumbprint
-                Write-Host "Switched certificate on $env:COMPUTERNAME."
+        if ($existingCertificate) {
+            # Compare the existing certificate and new certificate 'NotAfter' dates
+            if ($existingCertificate.NotAfter -lt $pfxCertificate.NotAfter) {
+                # Existing certificate expires first, so we need to remove it
+                $store.Remove($existingCertificate)
+                Write-Host "Removed existing certificate from $($existingCertificate.Subject) on $env:COMPUTERNAME"
+                
+                # Store the new certificate
+                $store.Add($pfxCertificate)
+                Write-Host "Added new certificate from $($pfxCertificate.Subject) to $env:COMPUTERNAME"
             } else {
-                Write-Host "No existing certificate found for $TechnicalAccount on $env:COMPUTERNAME."
+                # New certificate expires first, so we discard it
+                Write-Host "Existing certificate is valid longer on $env:COMPUTERNAME. New certificate discarded."
             }
-        } -ArgumentList $PfxCertificatePath, $TechnicalAccount, $pfxPassword
-    } catch {
-        Write-Host "An error occurred on $server: $_"
-    } finally {
-        # Remove the session
-        Remove-PSSession -Session $session
-    }
+        } else {
+            # No existing certificate, add the new certificate
+            $store.Add($pfxCertificate)
+            Write-Host "No existing certificate found. Added new certificate to $env:COMPUTERNAME"
+        }
+
+        # Close the certificate store
+        $store.Close()
+    } -ArgumentList $pfxCertificate, $technicalAccount
 }
