@@ -1,3 +1,4 @@
+```powershell
 param (
     [string]$pfxCertificatePath,       # Path to the PFX certificate on the remote server
     [string]$technicalAccount           # Subject name to look for in the certificate store
@@ -29,21 +30,17 @@ foreach ($server in $servers) {
         if ($existingCertificate) {
             # Compare the existing certificate and new certificate 'NotAfter' dates
             if ($existingCertificate.NotAfter -lt $pfxCertificate.NotAfter) {
-                # Existing certificate expires first, so we need to remove it
+                # Existing certificate expires first, update it
                 $store.Remove($existingCertificate)
-                Write-Host "Removed existing certificate from $($existingCertificate.Subject) on $env:COMPUTERNAME"
-                
-                # Store the new certificate
                 $store.Add($pfxCertificate)
-                Write-Host "Added new certificate from $($pfxCertificate.Subject) to $env:COMPUTERNAME"
+                Write-Host "Updated certificate for $technicalAccount on $env:COMPUTERNAME"
             } else {
-                # New certificate expires first, so we discard it
-                Write-Host "Existing certificate is valid longer on $env:COMPUTERNAME. New certificate discarded."
+                # Existing certificate is still valid longer, no change needed
+                Write-Host "No update needed for $technicalAccount on $env:COMPUTERNAME. Existing certificate is still valid longer."
             }
         } else {
-            # No existing certificate, add the new certificate
-            $store.Add($pfxCertificate)
-            Write-Host "No existing certificate found. Added new certificate to $env:COMPUTERNAME"
+            # No existing certificate found, do not add the new certificate
+            Write-Host "No existing certificate found for $technicalAccount on $env:COMPUTERNAME. No action taken."
         }
 
         # Close the certificate store
