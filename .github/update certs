@@ -24,17 +24,20 @@ foreach ($server in $servers) {
             # Load the required module if necessary
             Import-Module -Name "PKI" -ErrorAction SilentlyContinue
 
-            # Get the certificate with the specified subject
-            $certificate = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -like "*$($TechnicalAccount)*" }
+            # Step 1: Import the new certificate
+            $newCert = Import-PfxCertificate -FilePath $PfxCertificatePath -CertStoreLocation Cert:\LocalMachine\My -Password $SecurePassword
 
-            if ($certificate) {
-                Write-Host "Certificate for $TechnicalAccount found on $env:COMPUTERNAME."
+            # Step 2: Get the existing certificate with the specified subject
+            $existingCert = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -like "*$($TechnicalAccount)*" }
 
-                # Switch the certificate
-                Switch-Certificate -Thumbprint $certificate.Thumbprint -PfxFilePath $PfxCertificatePath -PfxPassword $SecurePassword
+            if ($existingCert) {
+                Write-Host "Existing certificate for $TechnicalAccount found on $env:COMPUTERNAME."
+
+                # Switch the certificate: oldCertThumbprint is the existing one, newCert is the newly imported one
+                Switch-Certificate -Thumbprint $existingCert.Thumbprint -NewThumbprint $newCert.Thumbprint
                 Write-Host "Switched certificate on $env:COMPUTERNAME."
             } else {
-                Write-Host "No certificate found for $TechnicalAccount on $env:COMPUTERNAME."
+                Write-Host "No existing certificate found for $TechnicalAccount on $env:COMPUTERNAME."
             }
         } -ArgumentList $PfxCertificatePath, $TechnicalAccount, $pfxPassword
     } catch {
@@ -44,4 +47,3 @@ foreach ($server in $servers) {
         Remove-PSSession -Session $session
     }
 }
-```
