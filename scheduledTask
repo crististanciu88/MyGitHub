@@ -1,49 +1,54 @@
-# Define an array of server names
-$servers = @("Server1", "Server2", "Server3") # Replace with your server names
-
 # Parameters for the scheduled task
-$taskName = "MyScheduledTask"
+$taskName = "refreshADT"
 $runnerPath = [System.IO.Path]::Combine($env:APPDATA, "Roaming\YourExecutable.exe") # Change to your executable's relative path
+$serviceAccount = "ServiceAccountUser" # Replace with your service account user
 
 # Script block to check for the scheduled task and start or create it
 $scriptBlock = {
     param (
         $taskName,
-        $runnerPath
+        $runnerPath,
+        $serviceAccount
     )
 
-    # Get the current user's name
-    $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    try {
+        # Check if the scheduled task exists
+        $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 
-    # Check if the scheduled task exists
-    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        if ($task) {
+            Write-Output "Task '$taskName' exists. Starting it..."
+            Start-ScheduledTask -TaskName $taskName
+        } else {
+            Write-Output "Task '$taskName' does not exist. Creating it..."
+            
+            # Create the action to run the executable
+            $action = New-ScheduledTaskAction -Execute $runnerPath
+            
+            # Create a trigger that allows the task to be run manually
+            $trigger = New-ScheduledTaskTrigger -AtStartup
+            
+            # Specify the principal (service account)
+            $principal = New-ScheduledTaskPrincipal -UserId $serviceAccount -LogonType ServiceAccount
+            
+            # Register the scheduled task without the password parameter
+            Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal
 
-    if ($task) {
-        Write-Output "Task '$taskName' exists. Starting it..."
-        Start-ScheduledTask -TaskName $taskName
-    } else {
-        Write-Output "Task '$taskName' does not exist. Creating it..."
-
-        # Create the action to run the executable
-        $action = New-ScheduledTaskAction -Execute $runnerPath
-        
-        # Create a trigger that allows the task to be run manually
-        $trigger = New-ScheduledTaskTrigger -AtStartup
-        
-        # Specify the principal (current user)
-        $principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive
-
-        # Register the scheduled task
-        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -User $currentUser -Password $null
-
-        # Start the newly created task
-        Start-ScheduledTask -TaskName $taskName
-        Write-Output "Task '$taskName' created and started."
+            # Start the newly created task
+            Start-ScheduledTask -TaskName $taskName
+            Write-Output "Task '$taskName' created and started."
+        }
+    } catch {
+        Write-Error "An error occurred: $_"
     }
 }
 
 # Invoke the command on each server
 foreach ($server in $servers) {
     Write-Output "Processing server: $server"
-    Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock -ArgumentList $taskName, $runnerPath
+    
+    try {
+        Invoke-Command -ComputerName $server -ScriptBlock $scriptBlock -ArgumentList $taskName, $runnerPath, $serviceAccount
+    } catch {
+        Write-Error "Failed to invoke command on server '$server': $_"
+    }
 }
