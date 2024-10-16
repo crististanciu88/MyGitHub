@@ -30,13 +30,9 @@ spec:
                 -- Get the existing X-Forwarded-For header
                 local xff_header = request_handle:headers():get("X-Forwarded-For")
 
-                -- Get the client IP from the first part of the XFF header
+                -- Get the client IP
                 local client_ip = request_handle:headers():get(":remote-addr")
 
-                -- Append the client IP to the existing X-Forwarded-For header
-                if xff_header then
-                  request_handle:headers():replace("X-Forwarded-For", xff_header .. ", " .. client_ip)
-                else
-                  request_handle:headers():add("X-Forwarded-For", client_ip)
-                end
+                -- Always append the client IP address
+                request_handle:headers():add("X-Forwarded-For", client_ip)
               end
