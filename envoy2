@@ -1,40 +1,34 @@
-apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
-  name: lua-xff-filter
-  namespace: your-namespace
+  name: addheader-into-ingressgateway
+  namespace: istio-system
 spec:
   workloadSelector:
+    # select by label in the same namespace
     labels:
-      app: your-app
+      istio: ingressgateway
   configPatches:
-  - applyTo: NETWORK_FILTER
-    match:
-      context: SIDECAR_INBOUND
-      listener:
-        filterChain:
-          filter:
-            name: "envoy.filters.network.http_connection_manager"
-    patch:
-      operation: INSERT_BEFORE
-      value:
-        name: "envoy.filters.http.lua"
-        typed_config:
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
-          inline_code: |
-            function envoy_on_request(request_handle)
-              -- Get the current X-Forwarded-For header
-              local xff = request_handle:headers():get("x-forwarded-for")
-              -- Get the downstream remote IP
-              local downstream_ip = request_handle:downstream_remote_address()
-              
-              -- Append the downstream IP to the X-Forwarded-For header
-              if xff then
-                xff = xff .. ", " .. downstream_ip
-              else
-                xff = downstream_ip
-              end
-
-              -- Set the updated X-Forwarded-For header
-              request_handle:headers():replace("x-forwarded-for", xff)
-            end
+    # The Envoy config you want to modify
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.http_connection_manager"
+              subFilter:
+                name: "envoy.router"
+      patch:
+        operation: INSERT_BEFORE
+        value: # lua filter specification
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+            inlineCode: |-
+              function envoy_on_request(request_handle)
+                  local xff_header = request_handle:headers():get("X-Forwarded-For")
+                  local first_ip = string.gmatch(xff_header, "(%d+.%d+.%d+.%d+)")();
+                  first_ip = string.gsub(first_ip, ",", "")
+                  request_handle:headers():add("X-Custom-User-IP", first_ip);
+                  request_handle:headers():add("X-Test-User-IP", "1.1.1.1");
+                end
