@@ -1,0 +1,40 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: append-xff
+  namespace: your-namespace
+spec:
+  workloadSelector:
+    labels:
+      app: your-app
+  configPatches:
+  - applyTo: NETWORK_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: MERGE
+      value:
+        codecType: AUTO
+        accessLogSettings:
+          - name: envoy.file_access_log
+            config:
+              path: "/dev/stdout"
+        the_route_config:
+          name: "local_route"
+          virtual_hosts:
+            - name: "local_service"
+              domains:
+                - "*"
+              routes:
+                - match:
+                    prefix: "/"
+                  route:
+                    cluster: "some_service"
+                    requestHeadersToAdd:
+                      - header:
+                          key: "X-Forwarded-For"
+                          value: "%DOWNSTREAM_REMOTE_IP%,%REQ(X-Forwarded-For)%"
