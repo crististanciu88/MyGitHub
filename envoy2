@@ -1,7 +1,7 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
-  name: append-xff
+  name: lua-xff-filter
   namespace: your-namespace
 spec:
   workloadSelector:
@@ -16,25 +16,25 @@ spec:
           filter:
             name: "envoy.filters.network.http_connection_manager"
     patch:
-      operation: MERGE
+      operation: INSERT_BEFORE
       value:
-        codecType: AUTO
-        accessLogSettings:
-          - name: envoy.file_access_log
-            config:
-              path: "/dev/stdout"
-        the_route_config:
-          name: "local_route"
-          virtual_hosts:
-            - name: "local_service"
-              domains:
-                - "*"
-              routes:
-                - match:
-                    prefix: "/"
-                  route:
-                    cluster: "some_service"
-                    requestHeadersToAdd:
-                      - header:
-                          key: "X-Forwarded-For"
-                          value: "%DOWNSTREAM_REMOTE_IP%,%REQ(X-Forwarded-For)%"
+        name: "envoy.filters.http.lua"
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+          inline_code: |
+            function envoy_on_request(request_handle)
+              -- Get the current X-Forwarded-For header
+              local xff = request_handle:headers():get("x-forwarded-for")
+              -- Get the downstream remote IP
+              local downstream_ip = request_handle:downstream_remote_address()
+              
+              -- Append the downstream IP to the X-Forwarded-For header
+              if xff then
+                xff = xff .. ", " .. downstream_ip
+              else
+                xff = downstream_ip
+              end
+
+              -- Set the updated X-Forwarded-For header
+              request_handle:headers():replace("x-forwarded-for", xff)
+            end
