@@ -4,7 +4,7 @@ metadata:
   namespace: istio-system
 spec:
   workloadSelector:
-    # select by label in the same namespace
+    # Select by label in the same namespace
     labels:
       istio: ingressgateway
   configPatches:
@@ -20,15 +20,23 @@ spec:
                 name: "envoy.router"
       patch:
         operation: INSERT_BEFORE
-        value: # lua filter specification
+        value:
+          # Lua filter specification
           name: envoy.filters.http.lua
           typed_config:
             "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
             inlineCode: |-
               function envoy_on_request(request_handle)
-                  local xff_header = request_handle:headers():get("X-Forwarded-For")
-                  local first_ip = string.gmatch(xff_header, "(%d+.%d+.%d+.%d+)")();
-                  first_ip = string.gsub(first_ip, ",", "")
-                  request_handle:headers():add("X-Custom-User-IP", first_ip);
-                  request_handle:headers():add("X-Test-User-IP", "1.1.1.1");
+                -- Get the existing X-Forwarded-For header
+                local xff_header = request_handle:headers():get("X-Forwarded-For")
+
+                -- Get the client IP from the first part of the XFF header
+                local client_ip = request_handle:headers():get(":remote-addr")
+
+                -- Append the client IP to the existing X-Forwarded-For header
+                if xff_header then
+                  request_handle:headers():replace("X-Forwarded-For", xff_header .. ", " .. client_ip)
+                else
+                  request_handle:headers():add("X-Forwarded-For", client_ip)
                 end
+              end
