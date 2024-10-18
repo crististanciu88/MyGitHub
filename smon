@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: my-service-monitor
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: my-app  # This should match the labels of your service
+  namespaceSelector:
+    matchNames:
+      - default  # The namespace where your service is located
+  endpoints:
+    - port: http  # Name of the port defined in your service
+      path: /metrics  # The endpoint for metrics in your application
+      interval: 30s  # How often Prometheus scrapes metrics
