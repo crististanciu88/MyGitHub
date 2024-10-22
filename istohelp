@@ -1,0 +1,68 @@
+Istioctl is a command-line tool for managing and inspecting Istio resources. Here are some common commands to inspect the status of VirtualServices, Gateways, and other Istio resources:
+
+Inspecting VirtualServices
+List all VirtualServices:
+Bash
+istioctl get virtualservice
+Use code with caution.
+
+Get details of a specific VirtualService:
+Bash
+istioctl get virtualservice <virtualservice-name> -o yaml
+Use code with caution.
+
+Inspecting Gateways
+List all Gateways:
+Bash
+istioctl get gateway
+Use code with caution.
+
+Get details of a specific Gateway:
+Bash
+istioctl get gateway <gateway-name> -o yaml
+Use code with caution.
+
+Inspecting DestinationRules
+List all DestinationRules:
+Bash
+istioctl get destinationrule
+Use code with caution.
+
+Get details of a specific DestinationRule:
+Bash
+istioctl get destinationrule <destinationrule-name> -o yaml
+Use code with caution.
+
+Inspecting Sidecars
+List all Sidecars:
+Bash
+istioctl get sidecar
+Use code with caution.
+
+Get details of a specific Sidecar:
+Bash
+istioctl get sidecar <pod-name> -n <namespace>
+Use code with caution.
+
+Inspecting IstioConfig
+Get IstioConfig:
+Bash
+istioctl get istioconfig
+Use code with caution.
+
+Inspecting MeshConfig
+Get MeshConfig:
+Bash
+istioctl get meshconfig
+Use code with caution.
+
+Additional Options:
+
+Filtering: Use labels or other criteria to filter the results. For example:
+Bash
+istioctl get virtualservice -l app=my-app
+Use code with caution.
+
+Output Formats: Customize the output format using options like -o yaml, -o json, or -o wide.
+Namespaces: Specify the namespace using the -n flag.
+By using these commands, you can gain valuable insights into the configuration and status of your Istio resources and troubleshoot any issues that may arise.
